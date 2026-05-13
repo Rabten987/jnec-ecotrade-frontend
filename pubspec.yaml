@@ -1,0 +1,43 @@
+name: jnec_ecotrade_app
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  get: ^4.6.6
+  http: ^1.2.0
+  shared_preferences: ^2.2.2
+  google_sign_in: ^6.2.1
+  image_picker: ^1.0.7
+  url_launcher: ^6.2.5
+  cupertino_icons: ^1.0.8
+  font_awesome_flutter: ^10.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/logo.png
+    - assets/images/app_icon.png
+    - assets/images/app_icon_foreground.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/app_icon.png"
+  min_sdk_android: 21
+  # ✅ This tells flutter_launcher_icons to NOT generate adaptive icons
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/images/app_icon.png"
+  override_android_min_sdk_version: true
