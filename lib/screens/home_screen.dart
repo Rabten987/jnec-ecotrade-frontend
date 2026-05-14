@@ -28,11 +28,18 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
+// ✅ Add this inside _HomeScreenState — replace your existing initState
   @override
   void initState() {
     super.initState();
     _homeController.loadItems();
     _homeController.loadUnreadCount();
+
+    // ✅ Show contact prompt if Google login user has no phone
+    //    Delayed so home screen builds first, then prompt appears after 2s
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _authController.showContactPromptIfNeeded();
+    });
   }
 
   String _formatCategory(String cat) {
