@@ -534,8 +534,8 @@ class _BookingRequestsScreenState
                                 ],
                               ),
 
-                              // ── Auction auto-handle notice ──
-                              if (isAuction && status == 'pending') ...[
+                              // ── Auction info banner — shown only while auction still running ──
+                              if (isAuction && status == 'pending' && !ended) ...[
                                 const SizedBox(height: 10),
                                 Container(
                                   width: double.infinity,
@@ -544,24 +544,21 @@ class _BookingRequestsScreenState
                                   decoration: BoxDecoration(
                                     color: Colors.blue.shade50,
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                        color: Colors.blue.shade200),
+                                    border: Border.all(color: Colors.blue.shade200),
                                   ),
                                   child: Row(
                                     children: [
                                       Icon(Icons.info_outline,
-                                          size: 15,
-                                          color: Colors.blue.shade700),
+                                          size: 15, color: Colors.blue.shade700),
                                       const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
-                                          ended
-                                              ? 'Auction ended — winner is being confirmed automatically.'
-                                              : 'Auction in progress — winner will be auto-confirmed when auction ends.',
+                                          isHighest
+                                              ? 'This is the highest bidder. You can accept now or wait for auction to end.'
+                                              : 'Auction in progress. You can accept any bidder manually or wait for auto-close.',
                                           style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.blue.shade700,
-                                          ),
+                                              fontSize: 11,
+                                              color: Colors.blue.shade700),
                                         ),
                                       ),
                                     ],
@@ -569,11 +566,8 @@ class _BookingRequestsScreenState
                                 ),
                               ],
 
-                              // ── Accept / Reject — ONLY for NON-auction pending bookings ──
-                              // ✅ For auction items, the scheduler handles this automatically.
-                              //    Hiding these buttons prevents the seller from accidentally
-                              //    accepting the wrong (non-highest) bidder.
-                              if (status == 'pending' && !isAuction) ...[
+                              // ── Accept / Reject — ALL pending bookings (auction + normal) ──
+                              if (status == 'pending') ...[
                                 const SizedBox(height: 12),
                                 Row(
                                   children: [
@@ -584,17 +578,20 @@ class _BookingRequestsScreenState
                                           onPressed: () =>
                                               _acceptBooking(booking['id']),
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                Colors.teal.shade600,
+                                            // ✅ Gold for highest bidder, teal for others
+                                            backgroundColor: isHighest
+                                                ? Colors.amber.shade600
+                                                : Colors.teal.shade600,
                                             shape: RoundedRectangleBorder(
                                                 borderRadius:
                                                     BorderRadius.circular(8)),
                                           ),
-                                          child: const Text('Accept',
-                                              style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight:
-                                                      FontWeight.bold)),
+                                          child: Text(
+                                            isHighest ? 'Accept Winner' : 'Accept',
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold),
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -606,8 +603,7 @@ class _BookingRequestsScreenState
                                           onPressed: () =>
                                               _rejectBooking(booking['id']),
                                           style: OutlinedButton.styleFrom(
-                                            side: const BorderSide(
-                                                color: Colors.red),
+                                            side: const BorderSide(color: Colors.red),
                                             shape: RoundedRectangleBorder(
                                                 borderRadius:
                                                     BorderRadius.circular(8)),
@@ -615,8 +611,7 @@ class _BookingRequestsScreenState
                                           child: const Text('Reject',
                                               style: TextStyle(
                                                   color: Colors.red,
-                                                  fontWeight:
-                                                      FontWeight.bold)),
+                                                  fontWeight: FontWeight.bold)),
                                         ),
                                       ),
                                     ),
