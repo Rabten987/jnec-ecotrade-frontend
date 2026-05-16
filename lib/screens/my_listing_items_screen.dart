@@ -101,7 +101,7 @@ class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
     final minBidController = TextEditingController(
         text: item['min_bid_price']?.toString() ?? '');
     final daysController   = TextEditingController();
-    String _action         = 'extend'; // ✅ dropdown state
+    String _action         = 'extend';
 
     String currentTimeLeft = '';
     if (item['auction_ends_at'] != null) {
@@ -116,7 +116,7 @@ class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
     }
 
     await Get.dialog(
-      StatefulBuilder( // ✅ allows dropdown to update inside dialog
+      StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
@@ -130,7 +130,6 @@ class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               if (currentTimeLeft.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.all(8),
@@ -142,7 +141,6 @@ class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
                   child: Text('Current: $currentTimeLeft',
                       style: TextStyle(fontSize: 12, color: Colors.teal.shade700)),
                 ),
-
               TextField(
                 controller: minBidController,
                 keyboardType: TextInputType.number,
@@ -155,10 +153,7 @@ class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
                       borderSide: BorderSide(color: Colors.teal.shade600)),
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // ✅ Dropdown — Extend or Reduce
               DropdownButtonFormField<String>(
                 value: _action,
                 decoration: InputDecoration(
@@ -175,10 +170,7 @@ class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
                 ],
                 onChanged: (val) => setDialogState(() => _action = val!),
               ),
-
               const SizedBox(height: 12),
-
-              // ✅ Days input
               TextField(
                 controller: daysController,
                 keyboardType: TextInputType.number,
@@ -196,7 +188,6 @@ class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
                       borderSide: BorderSide(color: Colors.teal.shade600)),
                 ),
               ),
-
               const SizedBox(height: 6),
               Text(
                 _action == 'extend'
@@ -228,7 +219,6 @@ class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
                 }
                 if (daysController.text.isNotEmpty) {
                   final days = int.parse(daysController.text);
-                  // ✅ Calculate new end date based on action
                   DateTime currentEnd = DateTime.now();
                   if (item['auction_ends_at'] != null) {
                     try {
@@ -239,7 +229,6 @@ class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
                   final newEnd = _action == 'extend'
                       ? currentEnd.add(Duration(days: days))
                       : currentEnd.subtract(Duration(days: days));
-                  // Send as days from now
                   final daysFromNow = newEnd.difference(DateTime.now()).inDays;
                   body['auction_duration'] = daysFromNow < 1 ? 1 : daysFromNow;
                 }
@@ -303,7 +292,7 @@ class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
       final now  = DateTime.now();
       if (now.isAfter(end)) return 'Ended';
       final diff = end.difference(now);
-      if (diff.inDays > 0) return '${diff.inDays}d left';
+      if (diff.inDays > 0)  return '${diff.inDays}d left';
       if (diff.inHours > 0) return '${diff.inHours}h left';
       return '${diff.inMinutes}m left';
     } catch (_) { return ''; }
@@ -316,8 +305,10 @@ class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.teal.shade600,
         foregroundColor: Colors.white,
-        title: const Text('My Listing', style: TextStyle(fontWeight: FontWeight.bold)),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Get.back()),
+        title: const Text('My Listing',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        leading: IconButton(
+            icon: const Icon(Icons.arrow_back), onPressed: () => Get.back()),
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadMyItems),
           IconButton(
@@ -333,13 +324,16 @@ class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.inbox_outlined, size: 60, color: Colors.grey.shade300),
+                      Icon(Icons.inbox_outlined,
+                          size: 60, color: Colors.grey.shade300),
                       const SizedBox(height: 12),
                       Text('No items posted yet',
-                          style: TextStyle(color: Colors.grey.shade400, fontSize: 16)),
+                          style: TextStyle(
+                              color: Colors.grey.shade400, fontSize: 16)),
                       const SizedBox(height: 8),
                       Text('Start posting items to sell!',
-                          style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                          style: TextStyle(
+                              color: Colors.grey.shade400, fontSize: 13)),
                     ],
                   ),
                 )
@@ -348,7 +342,8 @@ class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
                   child: ListView.builder(
                     padding: const EdgeInsets.all(12),
                     itemCount: _myItems.length,
-                    itemBuilder: (context, index) => _buildItemCard(_myItems[index]),
+                    itemBuilder: (context, index) =>
+                        _buildItemCard(_myItems[index]),
                   ),
                 ),
     );
@@ -362,173 +357,241 @@ class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
 
     final status    = item['status'] ?? 'available';
     final isSold    = status == 'sold';
-    final isAuction = item['auction_enabled'] == true || item['auction_enabled'] == 1;
+    final isAuction = item['auction_enabled'] == true ||
+        item['auction_enabled'] == 1 ||
+        item['auction_enabled'].toString() == 'true';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        // ✅ Green border for auction items
+        border: Border.all(
+          color: isAuction ? Colors.green.shade400 : Colors.grey.shade200,
+          width: isAuction ? 1.5 : 1,
+        ),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 4,
+              offset: const Offset(0, 2)),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      // ✅ FIX: Use IntrinsicHeight so image always matches card height
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
 
-          // ── Image ──
-          ClipRRect(
-            borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-            child: SizedBox(
-              width: 100, height: 120,
-              child: imageBytes != null
-                  ? Image.memory(imageBytes, fit: BoxFit.cover)
-                  : Container(
-                      color: Colors.grey.shade100,
-                      child: Icon(Icons.image_outlined, color: Colors.grey.shade300, size: 36)),
-            ),
-          ),
-
-          // ── Info ──
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-
-                  // Name + auction badge
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(item['item_name'] ?? '',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
-                      ),
-                      if (isAuction)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                              color: Colors.amber.shade100,
-                              borderRadius: BorderRadius.circular(8)),
-                          child: Text('🏷 Auction',
-                              style: TextStyle(fontSize: 9,
-                                  color: Colors.amber.shade800, fontWeight: FontWeight.bold)),
-                        ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  // Price
-                  Text('Nu. ${item['price']}',
-                      style: TextStyle(
-                          color: Colors.teal.shade600, fontSize: 13, fontWeight: FontWeight.w600)),
-
-                  const SizedBox(height: 4),
-
-                  // Status + auction time
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                            color: _getStatusColor(status).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(10)),
-                        child: Text(_getStatusLabel(status),
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold,
-                                color: _getStatusColor(status))),
-                      ),
-                      if (isAuction && item['auction_ends_at'] != null) ...[
-                        const SizedBox(width: 6),
-                        Text(_timeLeft(item['auction_ends_at']),
-                            style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.orange.shade700,
-                                fontWeight: FontWeight.w500)),
-                      ],
-                    ],
-                  ),
-
-                  if (isAuction && item['min_bid_price'] != null) ...[
-                    const SizedBox(height: 2),
-                    Text('Min bid: Nu. ${item['min_bid_price']}',
-                        style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
-                  ],
-
-                  const SizedBox(height: 8),
-
-                  // ── Buttons ──
-                  Row(
-                    children: [
-
-                      // Edit button
-                      Expanded(
-                        child: SizedBox(
-                          height: 28,
-                          child: ElevatedButton(
-                            onPressed: isSold ? null : () async {
-                              await Get.to(() => EditItemScreen(item: item));
-                              _loadMyItems();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isSold ? Colors.grey.shade400 : Colors.teal.shade600,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                              padding: EdgeInsets.zero,
-                            ),
-                            child: const Text('Edit',
-                                style: TextStyle(color: Colors.white, fontSize: 11)),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 6),
-
-                      // ✅ Auction button — only for auction items
-                      if (isAuction) ...[
-                        Expanded(
-                          child: SizedBox(
-                            height: 28,
-                            child: ElevatedButton(
-                              onPressed: isSold ? null : () => _editAuction(item),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: isSold ? Colors.grey.shade400 : Colors.amber.shade600,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                                padding: EdgeInsets.zero,
-                              ),
-                              child: const Text('Auction',
-                                  style: TextStyle(color: Colors.white, fontSize: 11)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-
-                      // Delete button
-                      Expanded(
-                        child: SizedBox(
-                          height: 28,
-                          child: ElevatedButton(
-                            onPressed: () => _deleteItem(item['id']),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                              padding: EdgeInsets.zero,
-                            ),
-                            child: const Text('Delete',
-                                style: TextStyle(color: Colors.white, fontSize: 11)),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            // ── Image — stretches to full card height ──
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.horizontal(left: Radius.circular(12)),
+              child: SizedBox(
+                width: 100,
+                // ✅ FIX: no fixed height — stretches with content
+                child: imageBytes != null
+                    ? Image.memory(imageBytes,
+                        fit: BoxFit.cover, width: 100)
+                    : Container(
+                        color: Colors.grey.shade100,
+                        child: Icon(Icons.image_outlined,
+                            color: Colors.grey.shade300, size: 36)),
               ),
             ),
-          ),
-        ],
+
+            // ── Info ──
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+
+                    // ── Name + auction badge ──
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(item['item_name'] ?? '',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        if (isAuction)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                                color: Colors.amber.shade100,
+                                borderRadius: BorderRadius.circular(8)),
+                            child: Text('🏷 Auction',
+                                style: TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.amber.shade800,
+                                    fontWeight: FontWeight.bold)),
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    // ── Price ──
+                    Text('Nu. ${item['price']}',
+                        style: TextStyle(
+                            color: Colors.teal.shade600,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600)),
+
+                    const SizedBox(height: 4),
+
+                    // ── Status + auction time ──
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                              color: _getStatusColor(status).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10)),
+                          child: Text(_getStatusLabel(status),
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: _getStatusColor(status))),
+                        ),
+                        if (isAuction && item['auction_ends_at'] != null) ...[
+                          const SizedBox(width: 6),
+                          Text(_timeLeft(item['auction_ends_at']),
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.orange.shade700,
+                                  fontWeight: FontWeight.w500)),
+                        ],
+                      ],
+                    ),
+
+                    if (isAuction && item['min_bid_price'] != null) ...[
+                      const SizedBox(height: 2),
+                      Text('Min bid: Nu. ${item['min_bid_price']}',
+                          style:
+                              TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                    ],
+
+                    const SizedBox(height: 8),
+
+                    // ── Buttons ──
+                    // ✅ FIX: auction items get 2 rows of buttons
+                    //         normal items get 1 row (Edit + Delete)
+                    if (isAuction) ...[
+
+                      // ✅ Row 1 — Edit + Auction
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _actionButton(
+                              label: 'Edit',
+                              color: isSold
+                                  ? Colors.grey.shade400
+                                  : Colors.teal.shade600,
+                              onPressed: isSold
+                                  ? null
+                                  : () async {
+                                      await Get.to(
+                                          () => EditItemScreen(item: item));
+                                      _loadMyItems();
+                                    },
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: _actionButton(
+                              label: 'Auction',
+                              color: isSold
+                                  ? Colors.grey.shade400
+                                  : Colors.amber.shade600,
+                              onPressed:
+                                  isSold ? null : () => _editAuction(item),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      // ✅ Row 2 — Delete (full width)
+                      _actionButton(
+                        label: 'Delete',
+                        color: Colors.red,
+                        onPressed: () => _deleteItem(item['id']),
+                        fullWidth: true,
+                      ),
+
+                    ] else ...[
+
+                      // ✅ Normal item — Edit + Delete in one row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _actionButton(
+                              label: 'Edit',
+                              color: isSold
+                                  ? Colors.grey.shade400
+                                  : Colors.teal.shade600,
+                              onPressed: isSold
+                                  ? null
+                                  : () async {
+                                      await Get.to(
+                                          () => EditItemScreen(item: item));
+                                      _loadMyItems();
+                                    },
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: _actionButton(
+                              label: 'Delete',
+                              color: Colors.red,
+                              onPressed: () => _deleteItem(item['id']),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  // ✅ Reusable button widget
+  Widget _actionButton({
+    required String label,
+    required Color color,
+    required VoidCallback? onPressed,
+    bool fullWidth = false,
+  }) {
+    final button = SizedBox(
+      height: 28,
+      width: fullWidth ? double.infinity : null,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          padding: EdgeInsets.zero,
+        ),
+        child: Text(label,
+            style: const TextStyle(color: Colors.white, fontSize: 11)),
+      ),
+    );
+    return fullWidth ? button : button;
   }
 }
