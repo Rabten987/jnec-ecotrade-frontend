@@ -41,7 +41,7 @@ class _PostScreenState extends State<PostScreen> {
   void initState() {
     super.initState();
     _loadCategories();
-    _autoFillContact(); // ✅ auto-fill phone from profile
+    _autoFillContact();
   }
 
   @override
@@ -55,7 +55,6 @@ class _PostScreenState extends State<PostScreen> {
     super.dispose();
   }
 
-  // ✅ Auto-fill contact from user's saved phone number
   Future<void> _autoFillContact() async {
     try {
       final authController = Get.find<AuthController>();
@@ -64,7 +63,6 @@ class _PostScreenState extends State<PostScreen> {
         setState(() => _contactController.text = phone);
       }
     } catch (_) {
-      // fallback — read from prefs
       final prefs = await SharedPreferences.getInstance();
       final phone = prefs.getString('user_phone') ?? '';
       if (phone.isNotEmpty) {
@@ -106,10 +104,35 @@ class _PostScreenState extends State<PostScreen> {
     });
   }
 
-  // ✅ Bhutan phone validation
+  // ✅ FIXED Bhutan phone validation
+  // BMobile: 17xxxxxx, 77xxxxxx
+  // TCell:   16xxxxxx, 8xxxxxxx (8 followed by any digit then 6 more)
+  // All numbers are exactly 8 digits
   bool _isValidBhutanPhone(String phone) {
     if (phone.length != 8) return false;
-    return RegExp(r'^(17|77|16|8)\d{6,7}$').hasMatch(phone);
+    return RegExp(r'^(17|77|16|8\d)\d{6}$').hasMatch(phone);
+  }
+
+  // ✅ Helper text shown below contact field
+  String _phoneHelperText(String phone) {
+    if (phone.isEmpty) return 'BMobile: 17/77, TCell: 16/8x — 8 digits';
+    if (phone.length < 8) return 'Enter ${8 - phone.length} more digit(s)';
+    if (_isValidBhutanPhone(phone)) return '✓ Valid Bhutan number';
+    return 'Invalid — must start with 17, 77, 16, or 8x';
+  }
+
+  Color _phoneHelperColor(String phone) {
+    if (phone.isEmpty) return Colors.black45;
+    if (phone.length == 8 && _isValidBhutanPhone(phone)) return Colors.green;
+    if (phone.length == 8) return Colors.red;
+    return Colors.black45;
+  }
+
+  // ✅ Border color changes based on validity
+  Color _phoneBorderColor(String phone) {
+    if (phone.length == 8 && _isValidBhutanPhone(phone)) return Colors.green;
+    if (phone.length == 8 && !_isValidBhutanPhone(phone)) return Colors.red;
+    return Colors.black26;
   }
 
   String _formatLabel(String val) =>
@@ -129,7 +152,8 @@ class _PostScreenState extends State<PostScreen> {
               title: const Text('Choose from Gallery'),
               onTap: () async {
                 Get.back();
-                final picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 800, imageQuality: 70);
+                final picked = await picker.pickImage(
+                    source: ImageSource.gallery, maxWidth: 800, imageQuality: 70);
                 if (picked != null) {
                   final bytes = await picked.readAsBytes();
                   setState(() { _imageBytes = bytes; _imageBase64 = base64Encode(bytes); });
@@ -141,7 +165,8 @@ class _PostScreenState extends State<PostScreen> {
               title: const Text('Take a Photo'),
               onTap: () async {
                 Get.back();
-                final picked = await picker.pickImage(source: ImageSource.camera, maxWidth: 800, imageQuality: 70);
+                final picked = await picker.pickImage(
+                    source: ImageSource.camera, maxWidth: 800, imageQuality: 70);
                 if (picked != null) {
                   final bytes = await picked.readAsBytes();
                   setState(() { _imageBytes = bytes; _imageBase64 = base64Encode(bytes); });
@@ -156,27 +181,45 @@ class _PostScreenState extends State<PostScreen> {
 
   Future<void> _postItem() async {
     if (_itemNameController.text.isEmpty) {
-      Get.snackbar('Error', 'Please fill item name!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please fill item name!',
+          backgroundColor: Colors.orange, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM); return;
     }
     if (_priceController.text.isEmpty) {
-      Get.snackbar('Error', 'Please fill price!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please fill price!',
+          backgroundColor: Colors.orange, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM); return;
     }
     if (_contactController.text.isEmpty) {
-      Get.snackbar('Error', 'Please fill contact number!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please fill contact number!',
+          backgroundColor: Colors.orange, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM); return;
     }
     // ✅ Bhutan phone validation
     if (!_isValidBhutanPhone(_contactController.text)) {
-      Get.snackbar('Invalid Phone', 'Enter a valid Bhutan number (BMobile: 17/77, TCell: 16/8)',
-          backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar(
+        'Invalid Phone Number',
+        'Enter a valid Bhutan number:\n• BMobile: 17xxxxxx or 77xxxxxx\n• TCell: 16xxxxxx or 8xxxxxxx',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 4),
+      ); return;
     }
     if (_selectedCategory == null) {
-      Get.snackbar('Error', 'Please select a category!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please select a category!',
+          backgroundColor: Colors.orange, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM); return;
     }
     if (_auctionEnabled && _minBidController.text.isEmpty) {
-      Get.snackbar('Error', 'Please set a minimum bid price!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please set a minimum bid price!',
+          backgroundColor: Colors.orange, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM); return;
     }
     if (_auctionEnabled && _auctionDaysController.text.isEmpty) {
-      Get.snackbar('Error', 'Please set auction duration in days!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please set auction duration in days!',
+          backgroundColor: Colors.orange, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM); return;
     }
 
     setState(() => _isLoading = true);
@@ -202,7 +245,11 @@ class _PostScreenState extends State<PostScreen> {
 
       final response = await http.post(
         Uri.parse(Constants.productsUrl),
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer $token'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
         body: jsonEncode(body),
       );
 
@@ -223,7 +270,8 @@ class _PostScreenState extends State<PostScreen> {
               children: [
                 Icon(Icons.check_circle, color: Colors.teal.shade600, size: 60),
                 const SizedBox(height: 16),
-                const Text('Item Posted!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const Text('Item Posted!',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Text(
                   _auctionEnabled
@@ -237,8 +285,11 @@ class _PostScreenState extends State<PostScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () { Get.back(); Get.back(); },
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.teal.shade600,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal.shade600,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
+                    ),
                     child: const Text('OK', style: TextStyle(color: Colors.white)),
                   ),
                 ),
@@ -249,11 +300,13 @@ class _PostScreenState extends State<PostScreen> {
         );
       } else {
         Get.snackbar('Error', data['message'] ?? 'Failed to post item',
-            backgroundColor: Colors.red, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
+            backgroundColor: Colors.red, colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM);
       }
     } catch (e) {
       Get.snackbar('Error', 'Connection error: $e',
-          backgroundColor: Colors.red, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
+          backgroundColor: Colors.red, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -261,16 +314,21 @@ class _PostScreenState extends State<PostScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final phone = _contactController.text;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.teal.shade600,
         foregroundColor: Colors.white,
         title: const Text('List an item'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Get.back()),
+        leading: IconButton(
+            icon: const Icon(Icons.arrow_back), onPressed: () => Get.back()),
         actions: [
-          IconButton(icon: const Icon(Icons.notifications_outlined),
-              onPressed: () => Get.to(() => const NotificationsScreen())),
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () => Get.to(() => const NotificationsScreen()),
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -291,25 +349,37 @@ class _PostScreenState extends State<PostScreen> {
                   color: Colors.grey.shade50,
                 ),
                 child: _imageBytes != null
-                    ? ClipRRect(borderRadius: BorderRadius.circular(8),
-                        child: Image.memory(_imageBytes!, fit: BoxFit.contain, width: double.infinity))
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(_imageBytes!,
+                            fit: BoxFit.contain, width: double.infinity))
                     : Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('Upload Images', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+                          const Text('Upload Images',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black54)),
                           const SizedBox(height: 4),
-                          const Text('Add photos of your item', style: TextStyle(color: Colors.black38, fontSize: 12)),
+                          const Text('Add photos of your item',
+                              style: TextStyle(
+                                  color: Colors.black38, fontSize: 12)),
                           const SizedBox(height: 12),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               OutlinedButton(
                                 onPressed: _pickImage,
-                                style: OutlinedButton.styleFrom(side: BorderSide(color: Colors.teal.shade600)),
-                                child: Text('Select Images', style: TextStyle(color: Colors.teal.shade600)),
+                                style: OutlinedButton.styleFrom(
+                                    side: BorderSide(
+                                        color: Colors.teal.shade600)),
+                                child: Text('Select Images',
+                                    style: TextStyle(
+                                        color: Colors.teal.shade600)),
                               ),
                               const SizedBox(width: 12),
-                              const Icon(Icons.camera_alt_outlined, color: Colors.black45),
+                              const Icon(Icons.camera_alt_outlined,
+                                  color: Colors.black45),
                             ],
                           ),
                         ],
@@ -323,9 +393,12 @@ class _PostScreenState extends State<PostScreen> {
             TextField(
               controller: _itemNameController,
               decoration: const InputDecoration(
-                labelText: 'Item name', labelStyle: TextStyle(color: Colors.black54),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
-                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
+                labelText: 'Item name',
+                labelStyle: TextStyle(color: Colors.black54),
+                enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.black26)),
+                focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.teal)),
               ),
             ),
 
@@ -335,11 +408,17 @@ class _PostScreenState extends State<PostScreen> {
             DropdownButtonFormField<String>(
               value: _selectedCondition,
               decoration: const InputDecoration(
-                labelText: 'Condition', labelStyle: TextStyle(color: Colors.black54),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
-                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
+                labelText: 'Condition',
+                labelStyle: TextStyle(color: Colors.black54),
+                enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.black26)),
+                focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.teal)),
               ),
-              items: _conditions.map((c) => DropdownMenuItem(value: c, child: Text(_formatLabel(c)))).toList(),
+              items: _conditions
+                  .map((c) => DropdownMenuItem(
+                      value: c, child: Text(_formatLabel(c))))
+                  .toList(),
               onChanged: (val) => setState(() => _selectedCondition = val!),
             ),
 
@@ -350,20 +429,33 @@ class _PostScreenState extends State<PostScreen> {
                 ? const Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Row(children: [
-                      SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.teal)),
+                      SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.teal)),
                       SizedBox(width: 10),
-                      Text('Loading categories...', style: TextStyle(color: Colors.black45, fontSize: 13)),
+                      Text('Loading categories...',
+                          style: TextStyle(
+                              color: Colors.black45, fontSize: 13)),
                     ]),
                   )
                 : DropdownButtonFormField<String>(
                     value: _selectedCategory,
                     decoration: const InputDecoration(
-                      labelText: 'Category', labelStyle: TextStyle(color: Colors.black54),
-                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
-                      focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
+                      labelText: 'Category',
+                      labelStyle: TextStyle(color: Colors.black54),
+                      enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.black26)),
+                      focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.teal)),
                     ),
-                    items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(_formatLabel(c)))).toList(),
-                    onChanged: (val) => setState(() => _selectedCategory = val),
+                    items: _categories
+                        .map((c) => DropdownMenuItem(
+                            value: c, child: Text(_formatLabel(c))))
+                        .toList(),
+                    onChanged: (val) =>
+                        setState(() => _selectedCategory = val),
                   ),
 
             const SizedBox(height: 16),
@@ -373,9 +465,12 @@ class _PostScreenState extends State<PostScreen> {
               controller: _priceController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'Price (Nu)', labelStyle: TextStyle(color: Colors.black54),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
-                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
+                labelText: 'Price (Nu)',
+                labelStyle: TextStyle(color: Colors.black54),
+                enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.black26)),
+                focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.teal)),
               ),
             ),
 
@@ -385,15 +480,18 @@ class _PostScreenState extends State<PostScreen> {
             TextField(
               controller: _locationController,
               decoration: const InputDecoration(
-                labelText: 'Location', labelStyle: TextStyle(color: Colors.black54),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
-                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
+                labelText: 'Location',
+                labelStyle: TextStyle(color: Colors.black54),
+                enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.black26)),
+                focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.teal)),
               ),
             ),
 
             const SizedBox(height: 16),
 
-            // ✅ Contact — auto-filled from profile, editable, Bhutan validation
+            // ✅ Contact — Bhutan validation with live feedback
             TextField(
               controller: _contactController,
               keyboardType: TextInputType.phone,
@@ -404,15 +502,38 @@ class _PostScreenState extends State<PostScreen> {
                 labelText: 'Contact Number',
                 labelStyle: const TextStyle(color: Colors.black54),
                 hintText: 'e.g. 77123456',
-                hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
-                counterText: '',
+                hintStyle:
+                    const TextStyle(color: Colors.black38, fontSize: 12),
+                counterText: '${phone.length}/8',
+                counterStyle: TextStyle(
+                  fontSize: 11,
+                  color: phone.length == 8 ? Colors.black54 : Colors.black38,
+                ),
+                // ✅ Live helper text shows what's wrong
+                helperText: _phoneHelperText(phone),
                 helperStyle: TextStyle(
-                    fontSize: 11,
-                    color: _contactController.text.length == 8 && _isValidBhutanPhone(_contactController.text)
-                        ? Colors.green
-                        : Colors.black45),
-                enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
-                focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
+                  fontSize: 11,
+                  color: _phoneHelperColor(phone),
+                ),
+                // ✅ Border turns red if invalid, green if valid
+                enabledBorder: UnderlineInputBorder(
+                    borderSide:
+                        BorderSide(color: _phoneBorderColor(phone))),
+                focusedBorder: UnderlineInputBorder(
+                    borderSide:
+                        BorderSide(color: _phoneBorderColor(phone))),
+                // ✅ Icon shows valid/invalid state
+                suffixIcon: phone.length == 8
+                    ? Icon(
+                        _isValidBhutanPhone(phone)
+                            ? Icons.check_circle
+                            : Icons.cancel,
+                        color: _isValidBhutanPhone(phone)
+                            ? Colors.green
+                            : Colors.red,
+                        size: 20,
+                      )
+                    : null,
               ),
             ),
 
@@ -422,31 +543,47 @@ class _PostScreenState extends State<PostScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _auctionEnabled ? Colors.teal.shade50 : Colors.grey.shade50,
+                color: _auctionEnabled
+                    ? Colors.teal.shade50
+                    : Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _auctionEnabled ? Colors.teal.shade300 : Colors.grey.shade300),
+                border: Border.all(
+                    color: _auctionEnabled
+                        ? Colors.teal.shade300
+                        : Colors.grey.shade300),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.gavel, color: _auctionEnabled ? Colors.teal.shade600 : Colors.grey, size: 22),
+                      Icon(Icons.gavel,
+                          color: _auctionEnabled
+                              ? Colors.teal.shade600
+                              : Colors.grey,
+                          size: 22),
                       const SizedBox(width: 10),
                       const Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Enable Auction', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                            Text('Buyers bid on your item. Highest bid wins when auction ends.',
-                                style: TextStyle(fontSize: 11, color: Colors.black45)),
+                            Text('Enable Auction',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15)),
+                            Text(
+                                'Buyers bid on your item. Highest bid wins when auction ends.',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.black45)),
                           ],
                         ),
                       ),
                       Switch(
                         value: _auctionEnabled,
                         activeColor: Colors.teal.shade600,
-                        onChanged: (val) => setState(() => _auctionEnabled = val),
+                        onChanged: (val) =>
+                            setState(() => _auctionEnabled = val),
                       ),
                     ],
                   ),
@@ -457,40 +594,62 @@ class _PostScreenState extends State<PostScreen> {
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: 'Minimum Bid Price (Nu)',
-                        labelStyle: TextStyle(color: Colors.teal.shade700),
+                        labelStyle:
+                            TextStyle(color: Colors.teal.shade700),
                         hintText: 'e.g. 100',
-                        hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
-                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal.shade300)),
-                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal.shade600)),
-                        prefixIcon: Icon(Icons.currency_rupee, color: Colors.teal.shade600, size: 18),
+                        hintStyle: const TextStyle(
+                            color: Colors.black38, fontSize: 12),
+                        enabledBorder: UnderlineInputBorder(
+                            borderSide:
+                                BorderSide(color: Colors.teal.shade300)),
+                        focusedBorder: UnderlineInputBorder(
+                            borderSide:
+                                BorderSide(color: Colors.teal.shade600)),
+                        prefixIcon: Icon(Icons.currency_rupee,
+                            color: Colors.teal.shade600, size: 18),
                       ),
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: _auctionDaysController,
                       keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly
+                      ],
                       decoration: InputDecoration(
                         labelText: 'Auction Duration (days)',
-                        labelStyle: TextStyle(color: Colors.teal.shade700),
+                        labelStyle:
+                            TextStyle(color: Colors.teal.shade700),
                         hintText: 'e.g. 3  (max 30 days)',
-                        hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
-                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal.shade300)),
-                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal.shade600)),
-                        prefixIcon: Icon(Icons.timer_outlined, color: Colors.teal.shade600, size: 18),
+                        hintStyle: const TextStyle(
+                            color: Colors.black38, fontSize: 12),
+                        enabledBorder: UnderlineInputBorder(
+                            borderSide:
+                                BorderSide(color: Colors.teal.shade300)),
+                        focusedBorder: UnderlineInputBorder(
+                            borderSide:
+                                BorderSide(color: Colors.teal.shade600)),
+                        prefixIcon: Icon(Icons.timer_outlined,
+                            color: Colors.teal.shade600, size: 18),
                       ),
                     ),
                     const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: Colors.teal.shade100, borderRadius: BorderRadius.circular(8)),
+                      decoration: BoxDecoration(
+                          color: Colors.teal.shade100,
+                          borderRadius: BorderRadius.circular(8)),
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline, size: 14, color: Colors.teal.shade700),
+                          Icon(Icons.info_outline,
+                              size: 14, color: Colors.teal.shade700),
                           const SizedBox(width: 8),
-                          Expanded(child: Text(
+                          Expanded(
+                              child: Text(
                             'Auction closes after the set number of days. Winner is the highest bidder.',
-                            style: TextStyle(fontSize: 11, color: Colors.teal.shade700),
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.teal.shade700),
                           )),
                         ],
                       ),
@@ -503,17 +662,23 @@ class _PostScreenState extends State<PostScreen> {
             const SizedBox(height: 32),
 
             SizedBox(
-              width: double.infinity, height: 50,
+              width: double.infinity,
+              height: 50,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _postItem,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.teal.shade600,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30)),
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(_auctionEnabled ? 'Post for Auction' : 'Post Item',
-                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    : Text(
+                        _auctionEnabled ? 'Post for Auction' : 'Post Item',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold)),
               ),
             ),
 
