@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Jnec Ecotrade App</string>
+	<string>JNEC Eco-Trade</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -26,6 +26,31 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.938854441807-r4l3rg838qkshq99h5bpvj656mr2udhs</string>
+			</array>
+		</dict>
+	</array>
+
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>whatsapp</string>
+	</array>
+
+	<key>NSCameraUsageDescription</key>
+	<string>JNEC Eco-Trade needs camera access to take photos of items.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>JNEC Eco-Trade needs photo library access to upload photos.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>JNEC Eco-Trade needs access to save photos.</string>
+
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
