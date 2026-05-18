@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
 
 class BookingRequestsScreen extends StatefulWidget {
@@ -619,7 +620,7 @@ class _BookingRequestsScreenState
                                 ),
                               ],
 
-                              // ✅ Auction confirmed — show winner confirmation message
+                              // ✅ Auction confirmed — show winner confirmation + WhatsApp button
                               if (isAuction && status == 'confirmed') ...[
                                 const SizedBox(height: 10),
                                 Container(
@@ -649,6 +650,58 @@ class _BookingRequestsScreenState
                                         ),
                                       ),
                                     ],
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+
+                                // ✅ WhatsApp button — contact the winner
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 44,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () async {
+                                      // ✅ Get winner's phone from user data
+                                      final winnerPhone = buyer['phone']?.toString() ?? '';
+                                      String phone = winnerPhone.replaceAll(RegExp(r'[^\d]'), '');
+                                      if (!phone.startsWith('975')) phone = '975$phone';
+
+                                      final itemName = item['item_name'] ?? 'item';
+                                      final message  = Uri.encodeComponent(
+                                        '🎉 Congratulations! You won the auction for "$itemName" '
+                                        'with a bid of Nu. ${bidPrice.toStringAsFixed(2)} on JNEC Eco-Trade (ReDruk). '
+                                        'Please contact me to arrange the exchange.',
+                                      );
+                                      final url = 'https://wa.me/$phone?text=$message';
+
+                                      if (await canLaunchUrl(Uri.parse(url))) {
+                                        await launchUrl(Uri.parse(url),
+                                            mode: LaunchMode.externalApplication);
+                                      } else {
+                                        Get.snackbar(
+                                          'Cannot Open WhatsApp',
+                                          winnerPhone.isEmpty
+                                              ? 'Winner has no phone number on their profile.'
+                                              : 'Could not open WhatsApp.',
+                                          backgroundColor: Colors.red,
+                                          colorText: Colors.white,
+                                          snackPosition: SnackPosition.BOTTOM,
+                                        );
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF25D366),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(30)),
+                                    ),
+                                    icon: const Icon(Icons.chat,
+                                        color: Colors.white, size: 18),
+                                    label: const Text(
+                                      'Contact Winner on WhatsApp',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13),
+                                    ),
                                   ),
                                 ),
                               ],
