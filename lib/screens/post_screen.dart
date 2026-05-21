@@ -26,13 +26,16 @@ class _PostScreenState extends State<PostScreen> {
   final _minBidController      = TextEditingController();
   final _auctionDaysController = TextEditingController();
 
-  String     _selectedCondition = 'used';
-  String?    _selectedCategory;
-  bool       _isLoading         = false;
-  bool       _categoriesLoading = true;
-  bool       _auctionEnabled    = false;
-  Uint8List? _imageBytes;
-  String?    _imageBase64;
+  String  _selectedCondition = 'used';
+  String? _selectedCategory;
+  bool    _isLoading         = false;
+  bool    _categoriesLoading = true;
+  bool    _auctionEnabled    = false;
+
+  // ✅ Multiple images — max 4
+  final List<Uint8List> _imageBytesList  = [];
+  final List<String>    _imageBase64List = [];
+  static const int      _maxImages       = 4;
 
   List<String> _categories = [];
   final List<String> _conditions = ['new', 'used', 'like_new'];
@@ -104,20 +107,15 @@ class _PostScreenState extends State<PostScreen> {
     });
   }
 
-  // ✅ FIXED Bhutan phone validation
-  // BMobile: 17xxxxxx, 77xxxxxx
-  // TCell:   16xxxxxx, 8xxxxxxx (8 followed by any digit then 6 more)
-  // All numbers are exactly 8 digits
   bool _isValidBhutanPhone(String phone) {
     if (phone.length != 8) return false;
     return RegExp(r'^(17|77|16|8\d)\d{6}$').hasMatch(phone);
   }
 
-  // ✅ Helper text shown below contact field
   String _phoneHelperText(String phone) {
     if (phone.isEmpty) return 'BMobile: 17/77, TCell: 16/8x — 8 digits';
     if (phone.length < 8) return 'Enter ${8 - phone.length} more digit(s)';
-    if (_isValidBhutanPhone(phone)) return '✓ Valid Bhutan number';
+    if (_isValidBhutanPhone(phone)) return 'Valid Bhutan number';
     return 'Invalid — must start with 17, 77, 16, or 8x';
   }
 
@@ -128,7 +126,6 @@ class _PostScreenState extends State<PostScreen> {
     return Colors.black45;
   }
 
-  // ✅ Border color changes based on validity
   Color _phoneBorderColor(String phone) {
     if (phone.length == 8 && _isValidBhutanPhone(phone)) return Colors.green;
     if (phone.length == 8 && !_isValidBhutanPhone(phone)) return Colors.red;
@@ -138,8 +135,41 @@ class _PostScreenState extends State<PostScreen> {
   String _formatLabel(String val) =>
       val[0].toUpperCase() + val.substring(1).replaceAll('_', ' ');
 
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
+  Future<void> _pickImage(ImageSource source) async {
+    if (_imageBytesList.length >= _maxImages) {
+      Get.snackbar('Limit Reached', 'Maximum $_maxImages photos allowed.',
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+          source: source, maxWidth: 800, imageQuality: 70);
+      if (picked != null) {
+        final bytes = await picked.readAsBytes();
+        setState(() {
+          _imageBytesList.add(bytes);
+          _imageBase64List.add(base64Encode(bytes));
+        });
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to pick image: $e',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM);
+    }
+  }
+
+  void _showImagePicker() {
+    if (_imageBytesList.length >= _maxImages) {
+      Get.snackbar('Limit Reached', 'Maximum $_maxImages photos allowed.',
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -147,79 +177,59 @@ class _PostScreenState extends State<PostScreen> {
       builder: (context) => SafeArea(
         child: Wrap(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                'Add Photo (${_imageBytesList.length}/$_maxImages)',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+            ),
             ListTile(
               leading: Icon(Icons.photo_library, color: Colors.teal.shade600),
               title: const Text('Choose from Gallery'),
-              onTap: () async {
-                Get.back();
-                final picked = await picker.pickImage(
-                    source: ImageSource.gallery, maxWidth: 800, imageQuality: 70);
-                if (picked != null) {
-                  final bytes = await picked.readAsBytes();
-                  setState(() { _imageBytes = bytes; _imageBase64 = base64Encode(bytes); });
-                }
-              },
+              onTap: () { Get.back(); _pickImage(ImageSource.gallery); },
             ),
             ListTile(
               leading: Icon(Icons.camera_alt, color: Colors.teal.shade600),
               title: const Text('Take a Photo'),
-              onTap: () async {
-                Get.back();
-                final picked = await picker.pickImage(
-                    source: ImageSource.camera, maxWidth: 800, imageQuality: 70);
-                if (picked != null) {
-                  final bytes = await picked.readAsBytes();
-                  setState(() { _imageBytes = bytes; _imageBase64 = base64Encode(bytes); });
-                }
-              },
+              onTap: () { Get.back(); _pickImage(ImageSource.camera); },
             ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
     );
   }
 
+  void _removeImage(int index) {
+    setState(() {
+      _imageBytesList.removeAt(index);
+      _imageBase64List.removeAt(index);
+    });
+  }
+
   Future<void> _postItem() async {
     if (_itemNameController.text.isEmpty) {
-      Get.snackbar('Error', 'Please fill item name!',
-          backgroundColor: Colors.orange, colorText: Colors.white,
-          snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please fill item name!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
     }
     if (_priceController.text.isEmpty) {
-      Get.snackbar('Error', 'Please fill price!',
-          backgroundColor: Colors.orange, colorText: Colors.white,
-          snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please fill price!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
     }
     if (_contactController.text.isEmpty) {
-      Get.snackbar('Error', 'Please fill contact number!',
-          backgroundColor: Colors.orange, colorText: Colors.white,
-          snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please fill contact number!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
     }
-    // ✅ Bhutan phone validation
     if (!_isValidBhutanPhone(_contactController.text)) {
-      Get.snackbar(
-        'Invalid Phone Number',
-        'Enter a valid Bhutan number:\n• BMobile: 17xxxxxx or 77xxxxxx\n• TCell: 16xxxxxx or 8xxxxxxx',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 4),
-      ); return;
+      Get.snackbar('Invalid Phone Number', 'Enter a valid Bhutan number:\n- BMobile: 17xxxxxx or 77xxxxxx\n- TCell: 16xxxxxx or 8xxxxxxx',
+          backgroundColor: Colors.red, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4)); return;
     }
     if (_selectedCategory == null) {
-      Get.snackbar('Error', 'Please select a category!',
-          backgroundColor: Colors.orange, colorText: Colors.white,
-          snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please select a category!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
     }
     if (_auctionEnabled && _minBidController.text.isEmpty) {
-      Get.snackbar('Error', 'Please set a minimum bid price!',
-          backgroundColor: Colors.orange, colorText: Colors.white,
-          snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please set a minimum bid price!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
     }
     if (_auctionEnabled && _auctionDaysController.text.isEmpty) {
-      Get.snackbar('Error', 'Please set auction duration in days!',
-          backgroundColor: Colors.orange, colorText: Colors.white,
-          snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please set auction duration in days!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
     }
 
     setState(() => _isLoading = true);
@@ -234,9 +244,15 @@ class _PostScreenState extends State<PostScreen> {
         'price':              double.parse(_priceController.text),
         'location':           _locationController.text,
         'contact_preference': _contactController.text,
-        'image':              _imageBase64,
         'auction_enabled':    _auctionEnabled,
       };
+
+      // ✅ Send images as JSON array for multiple, single string for one
+      if (_imageBase64List.length == 1) {
+        body['image'] = _imageBase64List.first;
+      } else if (_imageBase64List.length > 1) {
+        body['image'] = jsonEncode(_imageBase64List);
+      }
 
       if (_auctionEnabled) {
         body['min_bid_price']    = double.parse(_minBidController.text);
@@ -245,11 +261,7 @@ class _PostScreenState extends State<PostScreen> {
 
       final response = await http.post(
         Uri.parse(Constants.productsUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer $token'},
         body: jsonEncode(body),
       );
 
@@ -270,13 +282,10 @@ class _PostScreenState extends State<PostScreen> {
               children: [
                 Icon(Icons.check_circle, color: Colors.teal.shade600, size: 60),
                 const SizedBox(height: 16),
-                const Text('Item Posted!',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const Text('Item Posted!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Text(
-                  _auctionEnabled
-                      ? 'Your item is listed for auction!\nBidding starts now.'
-                      : 'Your item has been posted successfully.',
+                  _auctionEnabled ? 'Your item is listed for auction!\nBidding starts now.' : 'Your item has been posted successfully.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.black54),
                 ),
@@ -285,11 +294,8 @@ class _PostScreenState extends State<PostScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () { Get.back(); Get.back(); },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal.shade600,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30)),
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.teal.shade600,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
                     child: const Text('OK', style: TextStyle(color: Colors.white)),
                   ),
                 ),
@@ -300,13 +306,11 @@ class _PostScreenState extends State<PostScreen> {
         );
       } else {
         Get.snackbar('Error', data['message'] ?? 'Failed to post item',
-            backgroundColor: Colors.red, colorText: Colors.white,
-            snackPosition: SnackPosition.BOTTOM);
+            backgroundColor: Colors.red, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
       }
     } catch (e) {
       Get.snackbar('Error', 'Connection error: $e',
-          backgroundColor: Colors.red, colorText: Colors.white,
-          snackPosition: SnackPosition.BOTTOM);
+          backgroundColor: Colors.red, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -322,13 +326,10 @@ class _PostScreenState extends State<PostScreen> {
         backgroundColor: Colors.teal.shade600,
         foregroundColor: Colors.white,
         title: const Text('List an item'),
-        leading: IconButton(
-            icon: const Icon(Icons.arrow_back), onPressed: () => Get.back()),
+        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Get.back()),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () => Get.to(() => const NotificationsScreen()),
-          ),
+          IconButton(icon: const Icon(Icons.notifications_outlined),
+              onPressed: () => Get.to(() => const NotificationsScreen())),
         ],
       ),
       body: SingleChildScrollView(
@@ -337,55 +338,131 @@ class _PostScreenState extends State<PostScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            // ── Upload Image ──
-            GestureDetector(
-              onTap: _pickImage,
-              child: Container(
-                width: double.infinity,
-                constraints: const BoxConstraints(minHeight: 150, maxHeight: 300),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400, width: 1.5),
-                  borderRadius: BorderRadius.circular(8),
-                  color: Colors.grey.shade50,
+            // ── Photos Section ──
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Photos (${_imageBytesList.length}/$_maxImages)',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
+                if (_imageBytesList.length < _maxImages)
+                  TextButton.icon(
+                    onPressed: _showImagePicker,
+                    icon: Icon(Icons.add_photo_alternate, color: Colors.teal.shade600, size: 18),
+                    label: Text('Add Photo', style: TextStyle(color: Colors.teal.shade600, fontSize: 13)),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // ✅ Empty state
+            if (_imageBytesList.isEmpty)
+              GestureDetector(
+                onTap: _showImagePicker,
+                child: Container(
+                  width: double.infinity, height: 150,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade400, width: 1.5),
+                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.grey.shade50,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add_photo_alternate_outlined, size: 40, color: Colors.grey.shade400),
+                      const SizedBox(height: 8),
+                      const Text('Tap to add photos', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text('Up to $_maxImages photos', style: const TextStyle(color: Colors.black38, fontSize: 12)),
+                    ],
+                  ),
                 ),
-                child: _imageBytes != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.memory(_imageBytes!,
-                            fit: BoxFit.contain, width: double.infinity))
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text('Upload Images',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black54)),
-                          const SizedBox(height: 4),
-                          const Text('Add photos of your item',
-                              style: TextStyle(
-                                  color: Colors.black38, fontSize: 12)),
-                          const SizedBox(height: 12),
-                          Row(
+              )
+            else
+              SizedBox(
+                height: 110,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _imageBytesList.length + (_imageBytesList.length < _maxImages ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    // ✅ Add button at end
+                    if (index == _imageBytesList.length) {
+                      return GestureDetector(
+                        onTap: _showImagePicker,
+                        child: Container(
+                          width: 100,
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.teal.shade300, width: 1.5),
+                            borderRadius: BorderRadius.circular(8),
+                            color: Colors.teal.shade50,
+                          ),
+                          child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              OutlinedButton(
-                                onPressed: _pickImage,
-                                style: OutlinedButton.styleFrom(
-                                    side: BorderSide(
-                                        color: Colors.teal.shade600)),
-                                child: Text('Select Images',
-                                    style: TextStyle(
-                                        color: Colors.teal.shade600)),
-                              ),
-                              const SizedBox(width: 12),
-                              const Icon(Icons.camera_alt_outlined,
-                                  color: Colors.black45),
+                              Icon(Icons.add, color: Colors.teal.shade600, size: 28),
+                              const SizedBox(height: 4),
+                              Text('Add', style: TextStyle(color: Colors.teal.shade600, fontSize: 12)),
                             ],
                           ),
-                        ],
-                      ),
+                        ),
+                      );
+                    }
+
+                    // ✅ Image thumbnail
+                    return Stack(
+                      children: [
+                        Container(
+                          width: 100, height: 100,
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: index == 0 ? Colors.teal.shade400 : Colors.grey.shade300),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.memory(_imageBytesList[index], fit: BoxFit.cover),
+                          ),
+                        ),
+                        // ✅ Main badge
+                        if (index == 0)
+                          Positioned(
+                            bottom: 0, left: 0, right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.teal.shade600.withOpacity(0.85),
+                                borderRadius: const BorderRadius.only(
+                                    bottomLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
+                              ),
+                              child: const Text('Main', textAlign: TextAlign.center,
+                                  style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        // ✅ Remove button
+                        Positioned(
+                          top: 0, right: 8,
+                          child: GestureDetector(
+                            onTap: () => _removeImage(index),
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                              child: const Icon(Icons.close, color: Colors.white, size: 14),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
-            ),
+
+            if (_imageBytesList.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text('First photo is the main display image. Tap x to remove.',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+              ),
 
             const SizedBox(height: 20),
 
@@ -393,12 +470,9 @@ class _PostScreenState extends State<PostScreen> {
             TextField(
               controller: _itemNameController,
               decoration: const InputDecoration(
-                labelText: 'Item name',
-                labelStyle: TextStyle(color: Colors.black54),
-                enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.black26)),
-                focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.teal)),
+                labelText: 'Item name', labelStyle: TextStyle(color: Colors.black54),
+                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
+                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
               ),
             ),
 
@@ -408,17 +482,11 @@ class _PostScreenState extends State<PostScreen> {
             DropdownButtonFormField<String>(
               value: _selectedCondition,
               decoration: const InputDecoration(
-                labelText: 'Condition',
-                labelStyle: TextStyle(color: Colors.black54),
-                enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.black26)),
-                focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.teal)),
+                labelText: 'Condition', labelStyle: TextStyle(color: Colors.black54),
+                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
+                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
               ),
-              items: _conditions
-                  .map((c) => DropdownMenuItem(
-                      value: c, child: Text(_formatLabel(c))))
-                  .toList(),
+              items: _conditions.map((c) => DropdownMenuItem(value: c, child: Text(_formatLabel(c)))).toList(),
               onChanged: (val) => setState(() => _selectedCondition = val!),
             ),
 
@@ -429,33 +497,19 @@ class _PostScreenState extends State<PostScreen> {
                 ? const Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Row(children: [
-                      SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.teal)),
+                      SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.teal)),
                       SizedBox(width: 10),
-                      Text('Loading categories...',
-                          style: TextStyle(
-                              color: Colors.black45, fontSize: 13)),
-                    ]),
-                  )
+                      Text('Loading categories...', style: TextStyle(color: Colors.black45, fontSize: 13)),
+                    ]))
                 : DropdownButtonFormField<String>(
                     value: _selectedCategory,
                     decoration: const InputDecoration(
-                      labelText: 'Category',
-                      labelStyle: TextStyle(color: Colors.black54),
-                      enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.black26)),
-                      focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.teal)),
+                      labelText: 'Category', labelStyle: TextStyle(color: Colors.black54),
+                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
+                      focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
                     ),
-                    items: _categories
-                        .map((c) => DropdownMenuItem(
-                            value: c, child: Text(_formatLabel(c))))
-                        .toList(),
-                    onChanged: (val) =>
-                        setState(() => _selectedCategory = val),
+                    items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(_formatLabel(c)))).toList(),
+                    onChanged: (val) => setState(() => _selectedCategory = val),
                   ),
 
             const SizedBox(height: 16),
@@ -465,12 +519,9 @@ class _PostScreenState extends State<PostScreen> {
               controller: _priceController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'Price (Nu)',
-                labelStyle: TextStyle(color: Colors.black54),
-                enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.black26)),
-                focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.teal)),
+                labelText: 'Price (Nu)', labelStyle: TextStyle(color: Colors.black54),
+                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
+                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
               ),
             ),
 
@@ -480,18 +531,15 @@ class _PostScreenState extends State<PostScreen> {
             TextField(
               controller: _locationController,
               decoration: const InputDecoration(
-                labelText: 'Location',
-                labelStyle: TextStyle(color: Colors.black54),
-                enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.black26)),
-                focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.teal)),
+                labelText: 'Location', labelStyle: TextStyle(color: Colors.black54),
+                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
+                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
               ),
             ),
 
             const SizedBox(height: 16),
 
-            // ✅ Contact — Bhutan validation with live feedback
+            // ── Contact ──
             TextField(
               controller: _contactController,
               keyboardType: TextInputType.phone,
@@ -499,92 +547,47 @@ class _PostScreenState extends State<PostScreen> {
               maxLength: 8,
               onChanged: (val) => setState(() {}),
               decoration: InputDecoration(
-                labelText: 'Contact Number',
-                labelStyle: const TextStyle(color: Colors.black54),
-                hintText: 'e.g. 77123456',
-                hintStyle:
-                    const TextStyle(color: Colors.black38, fontSize: 12),
+                labelText: 'Contact Number', labelStyle: const TextStyle(color: Colors.black54),
+                hintText: 'e.g. 77123456', hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
                 counterText: '${phone.length}/8',
-                counterStyle: TextStyle(
-                  fontSize: 11,
-                  color: phone.length == 8 ? Colors.black54 : Colors.black38,
-                ),
-                // ✅ Live helper text shows what's wrong
+                counterStyle: TextStyle(fontSize: 11, color: phone.length == 8 ? Colors.black54 : Colors.black38),
                 helperText: _phoneHelperText(phone),
-                helperStyle: TextStyle(
-                  fontSize: 11,
-                  color: _phoneHelperColor(phone),
-                ),
-                // ✅ Border turns red if invalid, green if valid
-                enabledBorder: UnderlineInputBorder(
-                    borderSide:
-                        BorderSide(color: _phoneBorderColor(phone))),
-                focusedBorder: UnderlineInputBorder(
-                    borderSide:
-                        BorderSide(color: _phoneBorderColor(phone))),
-                // ✅ Icon shows valid/invalid state
+                helperStyle: TextStyle(fontSize: 11, color: _phoneHelperColor(phone)),
+                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: _phoneBorderColor(phone))),
+                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: _phoneBorderColor(phone))),
                 suffixIcon: phone.length == 8
-                    ? Icon(
-                        _isValidBhutanPhone(phone)
-                            ? Icons.check_circle
-                            : Icons.cancel,
-                        color: _isValidBhutanPhone(phone)
-                            ? Colors.green
-                            : Colors.red,
-                        size: 20,
-                      )
+                    ? Icon(_isValidBhutanPhone(phone) ? Icons.check_circle : Icons.cancel,
+                        color: _isValidBhutanPhone(phone) ? Colors.green : Colors.red, size: 20)
                     : null,
               ),
             ),
 
             const SizedBox(height: 24),
 
-            // ✅ Auction Toggle
+            // ── Auction Toggle ──
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _auctionEnabled
-                    ? Colors.teal.shade50
-                    : Colors.grey.shade50,
+                color: _auctionEnabled ? Colors.teal.shade50 : Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: _auctionEnabled
-                        ? Colors.teal.shade300
-                        : Colors.grey.shade300),
+                border: Border.all(color: _auctionEnabled ? Colors.teal.shade300 : Colors.grey.shade300),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.gavel,
-                          color: _auctionEnabled
-                              ? Colors.teal.shade600
-                              : Colors.grey,
-                          size: 22),
+                      Icon(Icons.gavel, color: _auctionEnabled ? Colors.teal.shade600 : Colors.grey, size: 22),
                       const SizedBox(width: 10),
                       const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Enable Auction',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15)),
-                            Text(
-                                'Buyers bid on your item. Highest bid wins when auction ends.',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.black45)),
-                          ],
-                        ),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('Enable Auction', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                          Text('Buyers bid on your item. Highest bid wins when auction ends.',
+                              style: TextStyle(fontSize: 11, color: Colors.black45)),
+                        ]),
                       ),
-                      Switch(
-                        value: _auctionEnabled,
-                        activeColor: Colors.teal.shade600,
-                        onChanged: (val) =>
-                            setState(() => _auctionEnabled = val),
-                      ),
+                      Switch(value: _auctionEnabled, activeColor: Colors.teal.shade600,
+                          onChanged: (val) => setState(() => _auctionEnabled = val)),
                     ],
                   ),
                   if (_auctionEnabled) ...[
@@ -593,66 +596,36 @@ class _PostScreenState extends State<PostScreen> {
                       controller: _minBidController,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        labelText: 'Minimum Bid Price (Nu)',
-                        labelStyle:
-                            TextStyle(color: Colors.teal.shade700),
-                        hintText: 'e.g. 100',
-                        hintStyle: const TextStyle(
-                            color: Colors.black38, fontSize: 12),
-                        enabledBorder: UnderlineInputBorder(
-                            borderSide:
-                                BorderSide(color: Colors.teal.shade300)),
-                        focusedBorder: UnderlineInputBorder(
-                            borderSide:
-                                BorderSide(color: Colors.teal.shade600)),
-                        prefixIcon: Icon(Icons.currency_rupee,
-                            color: Colors.teal.shade600, size: 18),
+                        labelText: 'Minimum Bid Price (Nu)', labelStyle: TextStyle(color: Colors.teal.shade700),
+                        hintText: 'e.g. 100', hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
+                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal.shade300)),
+                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal.shade600)),
+                        prefixIcon: Icon(Icons.currency_rupee, color: Colors.teal.shade600, size: 18),
                       ),
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: _auctionDaysController,
                       keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly
-                      ],
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: InputDecoration(
-                        labelText: 'Auction Duration (days)',
-                        labelStyle:
-                            TextStyle(color: Colors.teal.shade700),
-                        hintText: 'e.g. 3  (max 30 days)',
-                        hintStyle: const TextStyle(
-                            color: Colors.black38, fontSize: 12),
-                        enabledBorder: UnderlineInputBorder(
-                            borderSide:
-                                BorderSide(color: Colors.teal.shade300)),
-                        focusedBorder: UnderlineInputBorder(
-                            borderSide:
-                                BorderSide(color: Colors.teal.shade600)),
-                        prefixIcon: Icon(Icons.timer_outlined,
-                            color: Colors.teal.shade600, size: 18),
+                        labelText: 'Auction Duration (days)', labelStyle: TextStyle(color: Colors.teal.shade700),
+                        hintText: 'e.g. 3  (max 30 days)', hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
+                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal.shade300)),
+                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal.shade600)),
+                        prefixIcon: Icon(Icons.timer_outlined, color: Colors.teal.shade600, size: 18),
                       ),
                     ),
                     const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                          color: Colors.teal.shade100,
-                          borderRadius: BorderRadius.circular(8)),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline,
-                              size: 14, color: Colors.teal.shade700),
-                          const SizedBox(width: 8),
-                          Expanded(
-                              child: Text(
-                            'Auction closes after the set number of days. Winner is the highest bidder.',
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.teal.shade700),
-                          )),
-                        ],
-                      ),
+                      decoration: BoxDecoration(color: Colors.teal.shade100, borderRadius: BorderRadius.circular(8)),
+                      child: Row(children: [
+                        Icon(Icons.info_outline, size: 14, color: Colors.teal.shade700),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text('Auction closes after the set number of days. Winner is the highest bidder.',
+                            style: TextStyle(fontSize: 11, color: Colors.teal.shade700))),
+                      ]),
                     ),
                   ],
                 ],
@@ -662,23 +635,17 @@ class _PostScreenState extends State<PostScreen> {
             const SizedBox(height: 32),
 
             SizedBox(
-              width: double.infinity,
-              height: 50,
+              width: double.infinity, height: 50,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _postItem,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.teal.shade600,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(
-                        _auctionEnabled ? 'Post for Auction' : 'Post Item',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold)),
+                    : Text(_auctionEnabled ? 'Post for Auction' : 'Post Item',
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
 
