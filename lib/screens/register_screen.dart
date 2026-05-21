@@ -250,26 +250,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+
+            // ── Green Header ──
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
               color: const Color(0xFF00897B),
               child: Column(
                 children: [
+                  // ✅ Drawer logo — contain, no cropping
                   Container(
-                    width: 80, height: 80,
-                    decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white,
-                        border: Border.all(color: Colors.white, width: 2)),
-                    padding: const EdgeInsets.all(6),
-                    child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                    ),
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.cover,
+                        width: 80,  // ✅ slightly larger than container to fill edges
+                        height: 80,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 10),
-                  Text('JNEC Eco-Trade System',
-                      style: TextStyle(color: Colors.green.shade100, fontSize: 15, fontWeight: FontWeight.w500)),
+                  Text(
+                    'JNEC Eco-Trade System',
+                    style: TextStyle(
+                      color: Colors.green.shade100,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+
+            const SizedBox(height: 8),            
             ListTile(leading: const Icon(Icons.star_outline, color: Colors.black54), title: const Text('Rate Us'),
                 onTap: () { Get.back(); Get.to(() => const RateUsScreen()); }),
             ListTile(leading: const Icon(Icons.phone_outlined, color: Colors.black54), title: const Text('Contact Us'),
