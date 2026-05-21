@@ -201,7 +201,7 @@ class _EditPasswordScreenState
       appBar: AppBar(
         backgroundColor: Colors.teal.shade600,
         foregroundColor: Colors.white,
-        title: const Text('Edit Password'),
+        title: const Text('Change Password'),
         // ✅ GetX back
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),

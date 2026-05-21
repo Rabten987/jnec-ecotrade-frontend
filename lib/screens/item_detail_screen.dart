@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
+import '../utils/image_helper.dart';
 import '../controllers/saved_controller.dart';
 import '../controllers/cart_controller.dart';
 import '../controllers/auth_controller.dart';
@@ -28,7 +29,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
   final _isBooking = false.obs;
   final _isBooked  = false.obs;
-  int?    _bookingId;
+  int? _bookingId;
+
+  // ✅ Image carousel state
+  int _currentImageIndex = 0;
 
   // ✅ Auction state
   List<dynamic> _bids         = [];
@@ -44,9 +48,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   void initState() {
     super.initState();
     final auctionVal = widget.item['auction_enabled'];
-    _isAuction = auctionVal == true ||
-                 auctionVal == 1 ||
-                 auctionVal.toString() == 'true';
+    _isAuction = auctionVal == true || auctionVal == 1 || auctionVal.toString() == 'true';
     _checkIfBooked();
     if (_isAuction) _loadBids();
   }
@@ -61,6 +63,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token') ?? '';
   }
+
+  // ✅ Get all images using ImageHelper (handles single or JSON array)
+  List<Uint8List> get _images => ImageHelper.getImages(widget.item['image']);
 
   Future<void> _checkIfBooked() async {
     try {
@@ -135,7 +140,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         _bidController.clear();
         _isBooked.value = true;
         _bookingId      = data['booking']?['id'];
-        Get.snackbar('Bid Placed! ✅', 'Your bid of Nu. $bidAmount was placed!',
+        Get.snackbar('Bid Placed!', 'Your bid of Nu. $bidAmount was placed!',
             backgroundColor: Colors.teal.shade600, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
         _loadBids();
         try { Get.find<HomeController>().loadUnreadCount(); } catch (_) {}
@@ -148,13 +153,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           backgroundColor: Colors.red, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
     }
     setState(() => _isPlacingBid = false);
-  }
-
-  Uint8List? get _imageBytes {
-    if (widget.item['image'] != null && widget.item['image'].toString().isNotEmpty) {
-      try { return base64Decode(widget.item['image']); } catch (_) {}
-    }
-    return null;
   }
 
   Future<void> _bookItem() async {
@@ -177,7 +175,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           TextButton(onPressed: () => Get.back(result: false), child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600))),
           ElevatedButton(
             onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal.shade600, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal.shade600,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
             child: const Text('Confirm', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -202,8 +201,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         } catch (_) {}
         _isBooked.value = true;
         try { Get.find<HomeController>().loadUnreadCount(); } catch (_) {}
-        Get.snackbar('Booking Confirmed! ✅', 'You have successfully booked "${widget.item['item_name']}".',
-            backgroundColor: Colors.teal.shade600, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 3));
+        Get.snackbar('Booking Confirmed!', 'You have successfully booked "${widget.item['item_name']}".',
+            backgroundColor: Colors.teal.shade600, colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 3));
       } else {
         try {
           final data = jsonDecode(response.body);
@@ -224,12 +224,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(_isAuction ? 'Cancel Bid' : 'Cancel Booking'),
-        content: Text(_isAuction
-            ? 'Are you sure you want to cancel your bid?'
-            : 'Are you sure you want to cancel this booking?'),
+        content: Text(_isAuction ? 'Are you sure you want to cancel your bid?' : 'Are you sure you want to cancel this booking?'),
         actions: [
-          TextButton(onPressed: () => Get.back(result: false),
-              child: Text('No', style: TextStyle(color: Colors.grey.shade600))),
+          TextButton(onPressed: () => Get.back(result: false), child: Text('No', style: TextStyle(color: Colors.grey.shade600))),
           ElevatedButton(
             onPressed: () => Get.back(result: true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red,
@@ -247,7 +244,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       final itemId = widget.item['id'];
 
       if (_isAuction) {
-        // ✅ Cancel bid — removes from auctions table + booking
         final response = await http.delete(
           Uri.parse('${Constants.baseUrl}/items/$itemId/bids'),
           headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer $token'},
@@ -284,12 +280,12 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   }
 
   Future<void> _sendMessage() async {
-    final contact    = widget.item['contact_preference'] ?? '';
-    String phone     = contact.replaceAll(RegExp(r'[^\d]'), '');
+    final contact = widget.item['contact_preference'] ?? '';
+    String phone  = contact.replaceAll(RegExp(r'[^\d]'), '');
     if (!phone.startsWith('975')) phone = '975$phone';
-    final itemName   = widget.item['item_name'] ?? 'item';
-    final price      = widget.item['price'] ?? '';
-    final message    = Uri.encodeComponent(
+    final itemName = widget.item['item_name'] ?? 'item';
+    final price    = widget.item['price'] ?? '';
+    final message  = Uri.encodeComponent(
         'Hi! I am interested in your "$itemName" listed for Nu. $price on JNEC Eco-trade. Is it still available?');
     final whatsappUrl = 'https://wa.me/$phone?text=$message';
     if (await canLaunchUrl(Uri.parse(whatsappUrl))) {
@@ -338,21 +334,116 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     );
   }
 
- Widget _whatsAppButton({double height = 48, double fontSize = 14}) {
-  return SizedBox(
-    height: height,
-    child: ElevatedButton.icon(
-      onPressed: _sendMessage,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF25D366), // ✅ WhatsApp green
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+  Widget _whatsAppButton({double height = 48, double fontSize = 14}) {
+    return SizedBox(
+      height: height,
+      child: ElevatedButton.icon(
+        onPressed: _sendMessage,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF25D366),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        ),
+        icon: const FaIcon(FontAwesomeIcons.whatsapp, color: Colors.white, size: 18),
+        label: Text('Send Message',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: fontSize)),
       ),
-      icon: const FaIcon(FontAwesomeIcons.whatsapp, color: Colors.white, size: 18), // ✅ real WhatsApp icon
-      label: Text('Send Message',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: fontSize)),
-    ),
-  );
-}
+    );
+  }
+
+  // ✅ Swipeable image section with dot indicators
+  Widget _buildImageSection() {
+    final images = _images;
+
+    if (images.isEmpty) {
+      return Container(
+        width: double.infinity, height: 280,
+        color: Colors.grey.shade50,
+        child: Icon(Icons.image_outlined, size: 80, color: Colors.grey.shade300),
+      );
+    }
+
+    if (images.length == 1) {
+      return Container(
+        width: double.infinity, height: 280,
+        color: Colors.grey.shade50,
+        child: Image.memory(images.first, fit: BoxFit.contain),
+      );
+    }
+
+    // ✅ Multiple images — swipeable PageView with dots + counter
+    return SizedBox(
+      height: 280,
+      child: Stack(
+        children: [
+          PageView.builder(
+            itemCount: images.length,
+            onPageChanged: (index) => setState(() => _currentImageIndex = index),
+            itemBuilder: (context, index) => Container(
+              color: Colors.grey.shade50,
+              child: Image.memory(images[index], fit: BoxFit.contain),
+            ),
+          ),
+
+          // ✅ Dot indicators at bottom
+          Positioned(
+            bottom: 10, left: 0, right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(images.length, (index) => AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: index == _currentImageIndex ? 14 : 8,
+                height: 8,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  color: index == _currentImageIndex
+                      ? Colors.teal.shade600
+                      : Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              )),
+            ),
+          ),
+
+          // ✅ Image counter top right
+          Positioned(
+            top: 10, right: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${_currentImageIndex + 1} / ${images.length}',
+                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
+
+          // ✅ Swipe hint on first view
+          if (_currentImageIndex == 0 && images.length > 1)
+            Positioned(
+              bottom: 30, right: 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.swipe, color: Colors.white, size: 14),
+                    SizedBox(width: 4),
+                    Text('Swipe', style: TextStyle(color: Colors.white, fontSize: 11)),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -388,13 +479,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 children: [
                   const SizedBox(height: 16),
 
-                  // ── Item Image ──
-                  Container(
-                    width: double.infinity, height: 280, color: Colors.grey.shade50,
-                    child: _imageBytes != null
-                        ? Image.memory(_imageBytes!, fit: BoxFit.contain)
-                        : Icon(Icons.image_outlined, size: 80, color: Colors.grey.shade300),
-                  ),
+                  // ✅ Swipeable image section
+                  _buildImageSection(),
 
                   // ✅ Auction Banner
                   if (_isAuction)
@@ -466,7 +552,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                     ),
                   ),
 
-                  // ✅ Bid Section — auction items only
+                  // ✅ Bid Section
                   if (_isAuction)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -499,15 +585,12 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: _myBid['status'] == 'won'
-                                          ? Colors.green
-                                          : _myBid['status'] == 'lost'
-                                              ? Colors.red
-                                              : Colors.orange,
+                                      color: _myBid['status'] == 'won' ? Colors.green
+                                          : _myBid['status'] == 'lost' ? Colors.red : Colors.orange,
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
-                                      _myBid['status'] == 'won' ? '🏆 Won' : _myBid['status'] == 'lost' ? 'Lost' : 'Active',
+                                      _myBid['status'] == 'won' ? 'Won' : _myBid['status'] == 'lost' ? 'Lost' : 'Active',
                                       style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                                     ),
                                   ),
@@ -577,7 +660,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             final sellerEmail      = widget.item['user'] != null ? widget.item['user']['email'] ?? '' : '';
             final isOwner          = currentUserEmail == sellerEmail;
 
-            // ── Owner view ──
             if (isOwner) {
               return Container(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -599,7 +681,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               );
             }
 
-            // ✅ Auction item buttons
             if (_isAuction) {
               return Container(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -608,25 +689,20 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-
-                    // ✅ Bid input row
                     Row(
                       children: [
                         Expanded(
                           child: Container(
                             height: 48,
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.teal.shade300),
-                              borderRadius: BorderRadius.circular(30),
-                            ),
+                                border: Border.all(color: Colors.teal.shade300),
+                                borderRadius: BorderRadius.circular(30)),
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: TextField(
                               controller: _bidController,
                               keyboardType: TextInputType.number,
                               decoration: InputDecoration(
-                                hintText: _minBidPrice != null
-                                    ? 'Min Nu. ${_minBidPrice!.toStringAsFixed(0)}'
-                                    : 'Enter bid (Nu)',
+                                hintText: _minBidPrice != null ? 'Min Nu. ${_minBidPrice!.toStringAsFixed(0)}' : 'Enter bid (Nu)',
                                 hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
                                 border: InputBorder.none,
                                 isDense: true,
@@ -641,9 +717,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                           child: ElevatedButton.icon(
                             onPressed: _isPlacingBid ? null : _placeBid,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.teal.shade600,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                            ),
+                                backgroundColor: Colors.teal.shade600,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
                             icon: _isPlacingBid
                                 ? const SizedBox(width: 16, height: 16,
                                     child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
@@ -654,10 +729,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 8),
-
-                    // ✅ Send Message + Add to Cart
                     Row(
                       children: [
                         Expanded(child: _whatsAppButton(height: 44, fontSize: 12)),
@@ -668,38 +740,27 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                             child: ElevatedButton.icon(
                               onPressed: () => _cartController.addToCart(widget.item),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: _cartController.isInCart(widget.item)
-                                    ? Colors.grey.shade400
-                                    : Colors.teal.shade800,
+                                backgroundColor: _cartController.isInCart(widget.item) ? Colors.grey.shade400 : Colors.teal.shade800,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                               ),
-                              icon: Icon(
-                                _cartController.isInCart(widget.item) ? Icons.check : Icons.shopping_cart_outlined,
-                                color: Colors.white, size: 16,
-                              ),
-                              label: Text(
-                                _cartController.isInCart(widget.item) ? 'In Cart' : 'Add to Cart',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                              ),
+                              icon: Icon(_cartController.isInCart(widget.item) ? Icons.check : Icons.shopping_cart_outlined,
+                                  color: Colors.white, size: 16),
+                              label: Text(_cartController.isInCart(widget.item) ? 'In Cart' : 'Add to Cart',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                             ),
                           )),
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 8),
-
-                    // ✅ Cancel bid button
                     if (_isBooked.value)
                       SizedBox(
-                        width: double.infinity,
-                        height: 40,
+                        width: double.infinity, height: 40,
                         child: OutlinedButton(
                           onPressed: _isBooking.value ? null : _cancelBooking,
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.red, width: 1.5),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                          ),
+                              side: const BorderSide(color: Colors.red, width: 1.5),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
                           child: const Text('Cancel Bid', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                         ),
                       ),
@@ -708,7 +769,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               );
             }
 
-            // ── Normal item buttons ──
             return Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
               decoration: BoxDecoration(color: Colors.white,
@@ -718,7 +778,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 children: [
                   Row(
                     children: [
-                      // ── Book / Cancel ──
                       Expanded(
                         child: SizedBox(
                           height: 48,
@@ -738,20 +797,16 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      // ✅ WhatsApp Send Message button
                       Expanded(child: _whatsAppButton(height: 48, fontSize: 13)),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // ── Add to Cart ──
                   Obx(() => SizedBox(
                     width: double.infinity, height: 48,
                     child: ElevatedButton.icon(
                       onPressed: () => _cartController.addToCart(widget.item),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _cartController.isInCart(widget.item)
-                            ? Colors.grey.shade400
-                            : Colors.teal.shade800,
+                        backgroundColor: _cartController.isInCart(widget.item) ? Colors.grey.shade400 : Colors.teal.shade800,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       ),
                       icon: Icon(_cartController.isInCart(widget.item) ? Icons.check : Icons.shopping_cart_outlined,

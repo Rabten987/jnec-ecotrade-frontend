@@ -473,7 +473,7 @@ class _ProfileScreenState
                                 vertical: 10),
                       ),
                       child: Text(
-                        'Edit Password',
+                        'Change Password',
                         style: TextStyle(
                           color:
                               Colors.teal.shade600,
