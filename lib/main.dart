@@ -8,6 +8,7 @@ import 'controllers/auth_controller.dart';
 import 'routes/app_routes.dart';
 import 'controllers/saved_controller.dart';
 import 'controllers/cart_controller.dart';
+import 'firebase_options.dart';
 
 // ✅ Local notifications plugin instance
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -24,19 +25,37 @@ const AndroidNotificationChannel channel = AndroidNotificationChannel(
 // ✅ Background message handler — must be top-level function
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   // Background message received — handled by system tray automatically
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Initialize Firebase
-  await Firebase.initializeApp();
+  // ✅ Initialize Firebase with options
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   // ✅ Set background message handler
   FirebaseMessaging.onBackgroundMessage(
       _firebaseMessagingBackgroundHandler);
+
+  // ✅ Auto-refresh FCM token when it changes
+  //    Ensures backend always has a valid token
+  FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+    debugPrint('FCM Token refreshed: $newToken');
+    try {
+      final authController = Get.find<AuthController>();
+      if (authController.token.value.isNotEmpty) {
+        await authController.saveFcmToken();
+      }
+    } catch (e) {
+      debugPrint('Error saving refreshed FCM token: $e');
+    }
+  });
 
   // ✅ Create notification channel for Android
   await flutterLocalNotificationsPlugin
@@ -60,9 +79,7 @@ Future<void> main() async {
     iOS: iosSettings,
   );
 
-  await flutterLocalNotificationsPlugin.initialize(
-    initSettings,
-  );
+  await flutterLocalNotificationsPlugin.initialize(initSettings);
 
   // ✅ Request notification permissions
   await FirebaseMessaging.instance.requestPermission(
@@ -71,7 +88,7 @@ Future<void> main() async {
     sound: true,
   );
 
-  // ✅ Handle foreground notifications
+  // ✅ Handle foreground notifications — shows popup even when app is open
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     final notification = message.notification;
     final android      = message.notification?.android;
@@ -85,7 +102,8 @@ Future<void> main() async {
           android: AndroidNotificationDetails(
             'high_importance_channel',
             'High Importance Notifications',
-            channelDescription: 'This channel is used for important notifications.',
+            channelDescription:
+                'This channel is used for important notifications.',
             importance: Importance.high,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',
