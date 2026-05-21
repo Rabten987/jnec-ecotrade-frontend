@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../utils/constants.dart';
 import '../routes/app_routes.dart';
 import '../screens/profile_screen.dart';
@@ -25,6 +26,32 @@ class AuthController extends GetxController {
   void onInit() {
     super.onInit();
     loadUserData();
+  }
+
+  // ✅ Save FCM token to backend so server can send push notifications
+  Future<void> saveFcmToken() async {
+    try {
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken == null) return;
+
+      debugPrint('FCM Token: $fcmToken');
+
+      final response = await http.post(
+        Uri.parse('${Constants.baseUrl}/save-fcm-token'),
+        headers: {
+          'Content-Type':  'application/json',
+          'Accept':        'application/json',
+          'Authorization': 'Bearer ${token.value}',
+        },
+        body: jsonEncode({'fcm_token': fcmToken}),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('FCM token saved successfully');
+      }
+    } catch (e) {
+      debugPrint('FCM token error: $e');
+    }
   }
 
   // ✅ Load saved user data
@@ -161,6 +188,9 @@ class AuthController extends GetxController {
 
         await loadUserData();
 
+        // ✅ Save FCM token for push notifications
+        await saveFcmToken();
+
         final role = data['user']['role'] ?? 'user';
         if (role == 'admin') {
           Get.offAllNamed(AppRoutes.adminHome);
@@ -210,6 +240,9 @@ class AuthController extends GetxController {
         await prefs.setString('user_phone', data['user']['phone'] ?? '');
 
         await loadUserData();
+
+        // ✅ Save FCM token for push notifications
+        await saveFcmToken();
 
         // ✅ Check if phone is empty after Google login
         //    Google accounts have no phone — prompt user to fill it
