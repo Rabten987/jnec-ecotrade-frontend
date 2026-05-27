@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/cart_controller.dart';
+import '../utils/image_helper.dart';
 import 'item_detail_screen.dart';
 
 class CartScreen extends StatelessWidget {
@@ -10,58 +10,34 @@ class CartScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final _cartController = Get.find<CartController>();
+    final cartController = Get.find<CartController>();
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
         backgroundColor: Colors.teal.shade600,
         foregroundColor: Colors.white,
-        title: const Text(
-          'My Cart',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
-        ),
+        title: const Text('My Wishlist', style: TextStyle(fontWeight: FontWeight.bold)),
+        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Get.back()),
         actions: [
-          // ✅ Clear cart button
-          Obx(() => _cartController.cartItems.isNotEmpty
+          Obx(() => cartController.cartItems.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.delete_outline),
                   onPressed: () => Get.dialog(
                     AlertDialog(
-                      shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(16)),
-                      title: const Text('Clear Cart'),
-                      content: const Text(
-                          'Remove all items from cart?'),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      title: const Text('Clear Wishlist'),
+                      content: const Text('Remove all items from wishlist?'),
                       actions: [
                         TextButton(
-                          onPressed: () =>
-                              Get.back(),
-                          child: Text('Cancel',
-                              style: TextStyle(
-                                  color: Colors
-                                      .grey.shade600)),
+                          onPressed: () => Get.back(),
+                          child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
                         ),
                         ElevatedButton(
-                          onPressed: () {
-                            _cartController.clearCart();
-                            Get.back();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(
-                                        8)),
-                          ),
-                          child: const Text('Clear',
-                              style: TextStyle(
-                                  color: Colors.white)),
+                          onPressed: () { cartController.clearCart(); Get.back(); },
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                          child: const Text('Clear', style: TextStyle(color: Colors.white)),
                         ),
                       ],
                     ),
@@ -71,30 +47,18 @@ class CartScreen extends StatelessWidget {
         ],
       ),
       body: Obx(() {
-        if (_cartController.cartItems.isEmpty) {
+        if (cartController.cartItems.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.shopping_cart_outlined,
-                    size: 70,
-                    color: Colors.grey.shade300),
+                Icon(Icons.favorite_border, size: 70, color: Colors.grey.shade300),
                 const SizedBox(height: 16),
-                Text(
-                  'Your cart is empty',
-                  style: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontSize: 16,
-                  ),
-                ),
+                Text('Your wishlist is empty',
+                    style: TextStyle(color: Colors.grey.shade400, fontSize: 16)),
                 const SizedBox(height: 8),
-                Text(
-                  'Add items from the home screen',
-                  style: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontSize: 13,
-                  ),
-                ),
+                Text('Add items from the home screen',
+                    style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
               ],
             ),
           );
@@ -102,120 +66,61 @@ class CartScreen extends StatelessWidget {
 
         return Column(
           children: [
-
-            // ── Cart Items ──
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
-                itemCount:
-                    _cartController.cartItems.length,
+                itemCount: cartController.cartItems.length,
                 itemBuilder: (context, index) {
-                  final item =
-                      _cartController.cartItems[index];
-
-                  Uint8List? imageBytes;
-                  if (item['image'] != null &&
-                      item['image']
-                          .toString()
-                          .isNotEmpty) {
-                    try {
-                      imageBytes =
-                          base64Decode(item['image']);
-                    } catch (_) {}
-                  }
+                  final item = cartController.cartItems[index];
+                  // ✅ Use ImageHelper to handle single or JSON array images
+                  final Uint8List? imageBytes = ImageHelper.getFirstImage(item['image']);
 
                   return GestureDetector(
-                    onTap: () => Get.to(
-                        () => ItemDetailScreen(
-                            item: item)),
+                    onTap: () => Get.to(() => ItemDetailScreen(item: item)),
                     child: Container(
-                      margin: const EdgeInsets.only(
-                          bottom: 12),
+                      margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.blueGrey.shade50,
-                        borderRadius:
-                            BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black
-                                .withOpacity(0.04),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 4, offset: const Offset(0, 2))],
                       ),
                       child: Row(
                         children: [
-
                           // ── Image ──
                           ClipRRect(
-                            borderRadius:
-                                BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(8),
                             child: SizedBox(
-                              width: 60,
-                              height: 60,
+                              width: 60, height: 60,
                               child: imageBytes != null
-                                  ? Image.memory(
-                                      imageBytes,
-                                      fit: BoxFit.cover)
+                                  ? Image.memory(imageBytes, fit: BoxFit.cover)
                                   : Container(
-                                      color: Colors
-                                          .grey.shade200,
-                                      child: Icon(
-                                        Icons
-                                            .image_outlined,
-                                        color: Colors
-                                            .grey.shade400,
-                                      ),
-                                    ),
+                                      color: Colors.grey.shade200,
+                                      child: Icon(Icons.image_outlined, color: Colors.grey.shade400)),
                             ),
                           ),
-
                           const SizedBox(width: 12),
-
                           // ── Info ──
                           Expanded(
                             child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment
-                                      .start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  item['item_name'] ?? '',
-                                  style: const TextStyle(
-                                    fontWeight:
-                                        FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                  maxLines: 1,
-                                  overflow:
-                                      TextOverflow.ellipsis,
-                                ),
+                                Text(item['item_name'] ?? '',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                                const SizedBox(height: 4),
+                                Text('Nu. ${item['price']}',
+                                    style: TextStyle(color: Colors.teal.shade600,
+                                        fontWeight: FontWeight.w600, fontSize: 13)),
                               ],
                             ),
                           ),
-
-                          // ── Price ──
-                          Text(
-                            'Nu.${item['price']}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-
-                          const SizedBox(width: 8),
-
                           // ── Remove Button ──
                           GestureDetector(
-                            onTap: () => _cartController
-                                .removeFromCart(item),
-                            child: Icon(
-                              Icons.close,
-                              size: 18,
-                              color: Colors.grey.shade500,
-                            ),
+                            onTap: () => cartController.removeFromCart(item),
+                            child: Icon(Icons.close, size: 18, color: Colors.grey.shade500),
                           ),
                         ],
                       ),
@@ -225,29 +130,20 @@ class CartScreen extends StatelessWidget {
               ),
             ),
 
-            // ── Sub Total ──
+            // ── Total ──
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  16, 0, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
               child: Obx(() => SizedBox(
-                width: double.infinity,
-                height: 54,
+                width: double.infinity, height: 54,
                 child: ElevatedButton(
                   onPressed: () {},
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.teal.shade600,
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(30),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),
                   child: Text(
-                    'Sub Total = ${_cartController.totalPrice.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    'Total = Nu. ${cartController.totalPrice.toStringAsFixed(0)}',
+                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               )),

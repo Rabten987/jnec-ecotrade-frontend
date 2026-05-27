@@ -155,70 +155,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     setState(() => _isPlacingBid = false);
   }
 
-  Future<void> _bookItem() async {
-    final confirm = await Get.dialog<bool>(
-      AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Book Item'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Are you sure you want to book:', style: TextStyle(color: Colors.grey.shade600)),
-            const SizedBox(height: 8),
-            Text(widget.item['item_name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 4),
-            Text('Nu. ${widget.item['price']}', style: TextStyle(color: Colors.teal.shade600, fontWeight: FontWeight.w600)),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Get.back(result: false), child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600))),
-          ElevatedButton(
-            onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal.shade600,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) return;
-    _isBooking.value = true;
-    try {
-      final token    = await _getToken();
-      final response = await http.post(
-        Uri.parse('${Constants.baseUrl}/bookings'),
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer $token'},
-        body: jsonEncode({'item_id': widget.item['id']}),
-      );
-      _isBooking.value = false;
-      if (response.statusCode == 201) {
-        try {
-          final data = jsonDecode(response.body);
-          if (data['booking'] != null && data['booking']['id'] != null) {
-            _bookingId = data['booking']['id'];
-          }
-        } catch (_) {}
-        _isBooked.value = true;
-        try { Get.find<HomeController>().loadUnreadCount(); } catch (_) {}
-        Get.snackbar('Booking Confirmed!', 'You have successfully booked "${widget.item['item_name']}".',
-            backgroundColor: Colors.teal.shade600, colorText: Colors.white,
-            snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 3));
-      } else {
-        try {
-          final data = jsonDecode(response.body);
-          Get.snackbar('Error', data['message'] ?? 'Booking failed!',
-              backgroundColor: Colors.red, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
-        } catch (_) {
-          Get.snackbar('Error', 'Booking failed!', backgroundColor: Colors.red, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
-        }
-      }
-    } catch (e) {
-      _isBooking.value = false;
-      Get.snackbar('Error', 'Connection error: $e', backgroundColor: Colors.red, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
-    }
-  }
-
   Future<void> _cancelBooking() async {
     final confirm = await Get.dialog<bool>(
       AlertDialog(
@@ -743,9 +679,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                                 backgroundColor: _cartController.isInCart(widget.item) ? Colors.grey.shade400 : Colors.teal.shade800,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                               ),
-                              icon: Icon(_cartController.isInCart(widget.item) ? Icons.check : Icons.shopping_cart_outlined,
+                              icon: Icon(_cartController.isInCart(widget.item) ? Icons.shopping_cart : Icons.shopping_cart,
                                   color: Colors.white, size: 16),
-                              label: Text(_cartController.isInCart(widget.item) ? 'In Cart' : 'Add to Cart',
+                              label: Text(_cartController.isInCart(widget.item) ? 'In Wishlist' : 'Add to Wishlist',
                                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                             ),
                           )),
@@ -776,43 +712,26 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 48,
-                          child: Obx(() => OutlinedButton(
-                            onPressed: _isBooking.value ? null : _isBooked.value ? _cancelBooking : _bookItem,
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: _isBooked.value ? Colors.red : Colors.teal.shade600, width: 2),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                            ),
-                            child: _isBooking.value
-                                ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(
-                                    color: _isBooked.value ? Colors.red : Colors.teal.shade600, strokeWidth: 2))
-                                : Text(_isBooked.value ? 'Cancel Booking' : 'Book Now',
-                                    style: TextStyle(color: _isBooked.value ? Colors.red : Colors.teal.shade600,
-                                        fontWeight: FontWeight.bold, fontSize: 15)),
-                          )),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(child: _whatsAppButton(height: 48, fontSize: 13)),
-                    ],
-                  ),
+                  // ✅ WhatsApp button full width
+                  _whatsAppButton(height: 48, fontSize: 15),
                   const SizedBox(height: 8),
+                  // ✅ Add to Wishlist button
                   Obx(() => SizedBox(
                     width: double.infinity, height: 48,
                     child: ElevatedButton.icon(
                       onPressed: () => _cartController.addToCart(widget.item),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _cartController.isInCart(widget.item) ? Colors.grey.shade400 : Colors.teal.shade800,
+                        backgroundColor: _cartController.isInCart(widget.item)
+                            ? Colors.grey.shade400
+                            : Colors.teal.shade800,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       ),
-                      icon: Icon(_cartController.isInCart(widget.item) ? Icons.check : Icons.shopping_cart_outlined,
-                          color: Colors.white, size: 18),
-                      label: Text(_cartController.isInCart(widget.item) ? 'Added to Cart' : 'Add to Cart',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                      icon: Icon(
+                        _cartController.isInCart(widget.item) ? Icons.favorite : Icons.favorite_border,
+                        color: Colors.white, size: 18),
+                      label: Text(
+                        _cartController.isInCart(widget.item) ? 'Added to Wishlist' : 'Add to Wishlist',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                     ),
                   )),
                 ],

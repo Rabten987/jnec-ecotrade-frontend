@@ -101,7 +101,7 @@ class _AdminUsersScreenState
                 BorderRadius.circular(16)),
         title: const Text('Delete User'),
         content: Text(
-            'Are you sure you want to remove "$userName"?'),
+            'Are you sure you want to delete "$userName"?'),
         actions: [
           TextButton(
             onPressed: () =>
@@ -120,7 +120,7 @@ class _AdminUsersScreenState
                   borderRadius:
                       BorderRadius.circular(8)),
             ),
-            child: const Text('Remove',
+            child: const Text('Delete',
                 style: TextStyle(
                     color: Colors.white)),
           ),

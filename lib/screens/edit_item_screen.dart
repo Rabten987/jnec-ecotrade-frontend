@@ -22,13 +22,16 @@ class _EditItemScreenState extends State<EditItemScreen> {
   late TextEditingController _priceController;
   late TextEditingController _locationController;
   late TextEditingController _contactController;
-  final TextEditingController _minBidController     = TextEditingController();
+  final TextEditingController _minBidController      = TextEditingController();
   final TextEditingController _auctionDaysController = TextEditingController();
 
   late String _selectedCondition;
   late String _selectedCategory;
   bool _isLoading      = false;
   bool _auctionEnabled = false;
+
+  // ✅ Store the selected end date for display
+  DateTime? _selectedEndDate;
 
   // ✅ Multiple images support
   final List<Uint8List> _imageBytesList  = [];
@@ -58,13 +61,24 @@ class _EditItemScreenState extends State<EditItemScreen> {
       _minBidController.text = widget.item['min_bid_price'].toString();
     }
 
+    // ✅ Preload existing auction_ends_at as selected date
+    if (_auctionEnabled && widget.item['auction_ends_at'] != null) {
+      try {
+        _selectedEndDate = DateTime.parse(widget.item['auction_ends_at']).toLocal();
+        final now  = DateTime.now();
+        final days = _selectedEndDate!.difference(DateTime(now.year, now.month, now.day)).inDays;
+        if (days > 0) {
+          _auctionDaysController.text = days.toString();
+        }
+      } catch (_) {}
+    }
+
     // ✅ Load existing images using ImageHelper
     final existingImages = ImageHelper.getImages(widget.item['image']);
     final rawImage       = widget.item['image']?.toString() ?? '';
 
     if (existingImages.isNotEmpty) {
       _imageBytesList.addAll(existingImages);
-      // ✅ Rebuild base64 list from raw image data
       if (rawImage.startsWith('[')) {
         try {
           final decoded = jsonDecode(rawImage) as List;
@@ -87,7 +101,6 @@ class _EditItemScreenState extends State<EditItemScreen> {
     super.dispose();
   }
 
-  // ✅ FIXED Bhutan phone validation
   bool _isValidBhutanPhone(String phone) {
     if (phone.length != 8) return false;
     return RegExp(r'^(17|77|16|8\d)\d{6}$').hasMatch(phone);
@@ -95,6 +108,44 @@ class _EditItemScreenState extends State<EditItemScreen> {
 
   String _formatLabel(String val) =>
       val[0].toUpperCase() + val.substring(1).replaceAll('_', ' ');
+
+  // ✅ Show calendar date picker — same as post_screen
+  Future<void> _pickEndDate() async {
+    final now     = DateTime.now();
+    final maxDate = now.add(const Duration(days: 30));
+
+    // ✅ Start from existing end date or tomorrow
+    final initialDate = (_selectedEndDate != null && _selectedEndDate!.isAfter(now))
+        ? _selectedEndDate!
+        : now.add(const Duration(days: 3));
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: now.add(const Duration(days: 1)),
+      lastDate: maxDate,
+      helpText: 'Select Auction End Date',
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: ColorScheme.light(
+            primary: Colors.teal.shade600,
+            onPrimary: Colors.white,
+            surface: Colors.white,
+            onSurface: Colors.black87,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (picked != null) {
+      final days = picked.difference(DateTime(now.year, now.month, now.day)).inDays;
+      setState(() {
+        _selectedEndDate = picked;
+        _auctionDaysController.text = days.toString();
+      });
+    }
+  }
 
   Future<void> _pickImage(ImageSource source) async {
     if (_imageBytesList.length >= _maxImages) {
@@ -193,7 +244,6 @@ class _EditItemScreenState extends State<EditItemScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token') ?? '';
 
-      // ✅ Build image value same as post screen
       String? imageValue;
       if (_imageBase64List.length == 1) {
         imageValue = _imageBase64List.first;
@@ -217,6 +267,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
         if (_minBidController.text.isNotEmpty) {
           body['min_bid_price'] = double.parse(_minBidController.text);
         }
+        // ✅ Always send auction_duration when auction is enabled
         if (_auctionDaysController.text.isNotEmpty) {
           body['auction_duration'] = int.parse(_auctionDaysController.text);
         }
@@ -248,7 +299,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
                 const SizedBox(height: 8),
                 Text(
                   _auctionEnabled
-                      ? 'Your item is now listed for auction!'
+                      ? 'Your auction end date has been updated!'
                       : 'Your item has been updated successfully.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.black54),
@@ -346,8 +397,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
                 height: 110,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  itemCount: _imageBytesList.length +
-                      (_imageBytesList.length < _maxImages ? 1 : 0),
+                  itemCount: _imageBytesList.length + (_imageBytesList.length < _maxImages ? 1 : 0),
                   itemBuilder: (context, index) {
                     if (index == _imageBytesList.length) {
                       return GestureDetector(
@@ -408,8 +458,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
                             onTap: () => _removeImage(index),
                             child: Container(
                               padding: const EdgeInsets.all(3),
-                              decoration: const BoxDecoration(
-                                  color: Colors.red, shape: BoxShape.circle),
+                              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                               child: const Icon(Icons.close, color: Colors.white, size: 14),
                             ),
                           ),
@@ -540,11 +589,9 @@ class _EditItemScreenState extends State<EditItemScreen> {
                 suffixIcon: _contactController.text.length == 8
                     ? Icon(
                         _isValidBhutanPhone(_contactController.text)
-                            ? Icons.check_circle
-                            : Icons.cancel,
+                            ? Icons.check_circle : Icons.cancel,
                         color: _isValidBhutanPhone(_contactController.text)
-                            ? Colors.green
-                            : Colors.red,
+                            ? Colors.green : Colors.red,
                         size: 20)
                     : null,
               ),
@@ -576,7 +623,9 @@ class _EditItemScreenState extends State<EditItemScreen> {
                             const Text('Enable Auction',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                             Text(
-                              _auctionEnabled ? 'Buyers can bid on this item' : 'Turn on to sell via auction',
+                              _auctionEnabled
+                                  ? 'Buyers can bid on this item'
+                                  : 'Turn on to sell via auction',
                               style: const TextStyle(fontSize: 11, color: Colors.black45),
                             ),
                           ],
@@ -585,12 +634,21 @@ class _EditItemScreenState extends State<EditItemScreen> {
                       Switch(
                         value: _auctionEnabled,
                         activeColor: Colors.teal.shade600,
-                        onChanged: (val) => setState(() => _auctionEnabled = val),
+                        onChanged: (val) => setState(() {
+                          _auctionEnabled = val;
+                          if (!val) {
+                            // ✅ Clear date when auction disabled
+                            _selectedEndDate = null;
+                            _auctionDaysController.clear();
+                          }
+                        }),
                       ),
                     ],
                   ),
                   if (_auctionEnabled) ...[
                     const SizedBox(height: 16),
+
+                    // ── Min Bid ──
                     TextField(
                       controller: _minBidController,
                       keyboardType: TextInputType.number,
@@ -603,37 +661,78 @@ class _EditItemScreenState extends State<EditItemScreen> {
                             borderSide: BorderSide(color: Colors.teal.shade300)),
                         focusedBorder: UnderlineInputBorder(
                             borderSide: BorderSide(color: Colors.teal.shade600)),
-                        prefixIcon: Icon(Icons.currency_rupee, color: Colors.teal.shade600, size: 18),
+                        prefixIcon: Icon(Icons.currency_rupee,
+                            color: Colors.teal.shade600, size: 18),
                       ),
                     ),
+
                     const SizedBox(height: 16),
-                    TextField(
-                      controller: _auctionDaysController,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: InputDecoration(
-                        labelText: 'Auction Duration (days)',
-                        labelStyle: TextStyle(color: Colors.teal.shade700),
-                        hintText: 'e.g. 3  (max 30 days)',
-                        hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
-                        enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.teal.shade300)),
-                        focusedBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.teal.shade600)),
-                        prefixIcon: Icon(Icons.timer_outlined, color: Colors.teal.shade600, size: 18),
+
+                    // ✅ Calendar date picker — same as post_screen
+                    GestureDetector(
+                      onTap: _pickEndDate,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.teal.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today,
+                                color: Colors.teal.shade600, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Auction End Date',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.teal.shade600,
+                                          fontWeight: FontWeight.w500)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _auctionDaysController.text.isEmpty
+                                        ? 'Tap to select end date'
+                                        : () {
+                                            final days = int.tryParse(_auctionDaysController.text) ?? 0;
+                                            final endDate = DateTime.now().add(Duration(days: days));
+                                            return '${endDate.day.toString().padLeft(2, '0')}/'
+                                                '${endDate.month.toString().padLeft(2, '0')}/'
+                                                '${endDate.year}  ($days days from now)';
+                                          }(),
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: _auctionDaysController.text.isEmpty
+                                          ? Colors.black38
+                                          : Colors.teal.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.arrow_drop_down, color: Colors.teal.shade600),
+                          ],
+                        ),
                       ),
                     ),
+
                     const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                          color: Colors.teal.shade100, borderRadius: BorderRadius.circular(8)),
+                          color: Colors.teal.shade100,
+                          borderRadius: BorderRadius.circular(8)),
                       child: Row(
                         children: [
                           Icon(Icons.info_outline, size: 14, color: Colors.teal.shade700),
                           const SizedBox(width: 8),
                           Expanded(child: Text(
-                            'Auction closes after the set number of days. Winner is the highest bidder.',
+                            'Auction closes on the selected date. Winner is the highest bidder.',
                             style: TextStyle(fontSize: 11, color: Colors.teal.shade700),
                           )),
                         ],
@@ -657,7 +756,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
-                        _auctionEnabled ? 'Update & Enable Auction' : 'Update Item',
+                        _auctionEnabled ? 'Update & Save Auction' : 'Update Item',
                         style: const TextStyle(color: Colors.white, fontSize: 16,
                             fontWeight: FontWeight.bold)),
               ),

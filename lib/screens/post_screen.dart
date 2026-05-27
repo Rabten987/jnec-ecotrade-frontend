@@ -229,7 +229,10 @@ class _PostScreenState extends State<PostScreen> {
       Get.snackbar('Error', 'Please set a minimum bid price!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
     }
     if (_auctionEnabled && _auctionDaysController.text.isEmpty) {
-      Get.snackbar('Error', 'Please set auction duration in days!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please select an auction end date!',
+          backgroundColor: Colors.orange, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM);
+      return;
     }
 
     setState(() => _isLoading = true);
@@ -604,16 +607,79 @@ class _PostScreenState extends State<PostScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    TextField(
-                      controller: _auctionDaysController,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: InputDecoration(
-                        labelText: 'Auction Duration (days)', labelStyle: TextStyle(color: Colors.teal.shade700),
-                        hintText: 'e.g. 3  (max 30 days)', hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
-                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal.shade300)),
-                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal.shade600)),
-                        prefixIcon: Icon(Icons.timer_outlined, color: Colors.teal.shade600, size: 18),
+
+                    // ✅ Auction end date — calendar picker
+                    GestureDetector(
+                      onTap: () async {
+                        final now      = DateTime.now();
+                        final maxDate  = now.add(const Duration(days: 30));
+                        final picked   = await showDatePicker(
+                          context: context,
+                          initialDate: now.add(const Duration(days: 3)),
+                          firstDate: now.add(const Duration(days: 1)),
+                          lastDate: maxDate,
+                          helpText: 'Select Auction End Date',
+                          builder: (context, child) => Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: ColorScheme.light(
+                                primary: Colors.teal.shade600,
+                                onPrimary: Colors.white,
+                                surface: Colors.white,
+                                onSurface: Colors.black87,
+                              ),
+                            ),
+                            child: child!,
+                          ),
+                        );
+                        if (picked != null) {
+                          final days = picked.difference(DateTime(now.year, now.month, now.day)).inDays;
+                          setState(() => _auctionDaysController.text = days.toString());
+                        }
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.teal.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today, color: Colors.teal.shade600, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Auction End Date',
+                                      style: TextStyle(fontSize: 12, color: Colors.teal.shade600,
+                                          fontWeight: FontWeight.w500)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _auctionDaysController.text.isEmpty
+                                        ? 'Tap to select end date'
+                                        : () {
+                                            final days = int.tryParse(_auctionDaysController.text) ?? 3;
+                                            final endDate = DateTime.now().add(Duration(days: days));
+                                            return '${endDate.day.toString().padLeft(2,'0')}/'
+                                                '${endDate.month.toString().padLeft(2,'0')}/'
+                                                '${endDate.year}  ($days days)';
+                                          }(),
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: _auctionDaysController.text.isEmpty
+                                          ? Colors.black38
+                                          : Colors.teal.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.arrow_drop_down, color: Colors.teal.shade600),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),

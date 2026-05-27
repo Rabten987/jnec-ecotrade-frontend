@@ -17,21 +17,12 @@ class MyListingsScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.teal.shade600,
         foregroundColor: Colors.white,
-        title: const Text(
-          'My Listings',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        // ✅ GetX back
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
-        ),
+        title: const Text('My Listings', style: TextStyle(fontWeight: FontWeight.bold)),
+        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Get.back()),
         actions: [
-          // ✅ Notification button working
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
-            onPressed: () =>
-                Get.to(() => const NotificationsScreen()),
+            onPressed: () => Get.to(() => const NotificationsScreen()),
           ),
         ],
       ),
@@ -40,29 +31,22 @@ class MyListingsScreen extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 10),
-
-            // My Listing Option
             _menuItem(
               icon: Icons.dashboard_customize_outlined,
               title: 'My Listing',
-              onTap: () => Get.to(
-                  () => const MyListingItemsScreen()),
+              onTap: () => Get.to(() => const MyListingItemsScreen()),
             ),
-
             const SizedBox(height: 8),
-
-            // Booking Requests Option
             _menuItem(
               icon: Icons.description_outlined,
               title: 'Booking Requests',
-              onTap: () => Get.to(
-                  () => const BookingRequestsScreen()),
+              onTap: () => Get.to(() => const BookingRequestsScreen()),
             ),
           ],
         ),
       ),
 
-      // ✅ Bottom Navigation with GetX
+      // ✅ Bottom nav with Wishlist renamed
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 1,
         type: BottomNavigationBarType.fixed,
@@ -70,7 +54,7 @@ class MyListingsScreen extends StatelessWidget {
         unselectedItemColor: Colors.black45,
         onTap: (index) {
           if (index == 0) {
-            Get.back(); // ✅ Home
+            Get.back();
           } else if (index == 1) {
             // Already here
           } else if (index == 2) {
@@ -83,38 +67,25 @@ class MyListingsScreen extends StatelessWidget {
         },
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
+              icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(
-            icon: Icon(
-                Icons.dashboard_customize_outlined),
-            activeIcon:
-                Icon(Icons.dashboard_customize),
-            label: 'My Listings',
-          ),
+              icon: Icon(Icons.dashboard_customize_outlined),
+              activeIcon: Icon(Icons.dashboard_customize),
+              label: 'My Listings'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.add_box_outlined),
-            activeIcon: Icon(Icons.add_box),
-            label: 'Post',
-          ),
+              icon: Icon(Icons.add_box_outlined), activeIcon: Icon(Icons.add_box), label: 'Post'),
+          // ✅ Renamed to Wishlist with heart icon
           BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart_outlined),
-            activeIcon: Icon(Icons.shopping_cart),
-            label: ' Cart',
-          ),
+              icon: Icon(Icons.shopping_cart),
+              activeIcon: Icon(Icons.shopping_cart),
+              label: 'Wishlist'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
+              icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
     );
   }
 
-  // ✅ Removed BuildContext parameter - not needed with GetX
   Widget _menuItem({
     required IconData icon,
     required String title,
@@ -123,35 +94,22 @@ class MyListingsScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-            horizontal: 16, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04),
+              blurRadius: 4, offset: const Offset(0, 2))],
         ),
         child: Row(
           children: [
             Icon(icon, size: 26, color: Colors.black87),
             const SizedBox(width: 16),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.black87,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            Text(title, style: const TextStyle(
+                fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w500)),
             const Spacer(),
-            Icon(Icons.arrow_forward_ios,
-                size: 16, color: Colors.grey.shade400),
+            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade400),
           ],
         ),
       ),

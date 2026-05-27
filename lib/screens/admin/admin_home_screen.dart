@@ -645,19 +645,27 @@ class _AdminHomeScreenState
         selectedItemColor: kAdminColor,
         unselectedItemColor: Colors.black45,
         onTap: (index) {
-          setState(() => _currentIndex = index);
-          if (index == 1) {
-            Get.to(
-                    () => const AdminItemsScreen())
-                ?.then((_) => _refreshAll());
-          } else if (index == 2) {
-            Get.to(() =>
-                    const AdminFeedbackScreen())
-                ?.then((_) => _loadStats());
-          } else if (index == 3) {
-            Get.to(
-                    () => const AdminProfileScreen())
+          if (index == 0) {
+            setState(() => _currentIndex = 0);
+          } else if (index == 1) {
+            setState(() => _currentIndex = 1);
+            Get.to(() => const AdminItemsScreen())
                 ?.then((_) {
+              setState(() => _currentIndex = 0);
+              _refreshAll();
+            });
+          } else if (index == 2) {
+            setState(() => _currentIndex = 2);
+            Get.to(() => const AdminFeedbackScreen())
+                ?.then((_) {
+              setState(() => _currentIndex = 0);
+              _loadStats();
+            });
+          } else if (index == 3) {
+            setState(() => _currentIndex = 3);
+            Get.to(() => const AdminProfileScreen())
+                ?.then((_) {
+              setState(() => _currentIndex = 0);
               _loadStats();
               _loadAdminAvatar();
             });
