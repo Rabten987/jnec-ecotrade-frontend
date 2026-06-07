@@ -6,17 +6,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
+import '../utils/image_helper.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class BookingRequestsScreen extends StatefulWidget {
   const BookingRequestsScreen({super.key});
 
   @override
-  State<BookingRequestsScreen> createState() =>
-      _BookingRequestsScreenState();
+  State<BookingRequestsScreen> createState() => _BookingRequestsScreenState();
 }
 
-class _BookingRequestsScreenState
-    extends State<BookingRequestsScreen> {
+class _BookingRequestsScreenState extends State<BookingRequestsScreen> {
   List<dynamic> _requests = [];
   bool _isLoading = false;
 
@@ -29,9 +29,8 @@ class _BookingRequestsScreenState
   Future<void> _loadRequests() async {
     setState(() => _isLoading = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token') ?? '';
-
+      final prefs    = await SharedPreferences.getInstance();
+      final token    = prefs.getString('token') ?? '';
       final response = await http.get(
         Uri.parse('${Constants.baseUrl}/booking-requests'),
         headers: {
@@ -40,95 +39,64 @@ class _BookingRequestsScreenState
           'Authorization': 'Bearer $token',
         },
       );
-
       if (response.statusCode == 200) {
-        setState(() {
-          _requests = jsonDecode(response.body);
-        });
+        setState(() => _requests = jsonDecode(response.body));
       }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to load requests: $e',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Error', 'Failed to load requests: $e',
+          backgroundColor: Colors.red, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM);
     }
     setState(() => _isLoading = false);
   }
 
   Future<void> _acceptBooking(int id) async {
-    final confirm = await Get.dialog<bool>(
-      AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
-        title: const Text('Accept Booking'),
-        content: const Text(
-            'Are you sure you want to accept this booking? All other requests for this item will be rejected.'),
-        actions: [
-          TextButton(
+    final confirm = await Get.dialog<bool>(AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Accept Booking'),
+      content: const Text(
+          'Accept this booking? All other requests for this item will be rejected automatically.'),
+      actions: [
+        TextButton(
             onPressed: () => Get.back(result: false),
-            child: Text('Cancel',
-                style: TextStyle(color: Colors.grey.shade600)),
-          ),
-          ElevatedButton(
-            onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600))),
+        ElevatedButton(
+          onPressed: () => Get.back(result: true),
+          style: ElevatedButton.styleFrom(
               backgroundColor: Colors.teal.shade600,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Accept',
-                style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      await _updateBooking(id, 'accept');
-    }
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+          child: const Text('Accept', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    ));
+    if (confirm == true) await _updateBooking(id, 'accept');
   }
 
   Future<void> _rejectBooking(int id) async {
-    final confirm = await Get.dialog<bool>(
-      AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
-        title: const Text('Reject Booking'),
-        content: const Text(
-            'Are you sure you want to reject this booking request?'),
-        actions: [
-          TextButton(
+    final confirm = await Get.dialog<bool>(AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Reject Booking'),
+      content: const Text('Are you sure you want to reject this booking request?'),
+      actions: [
+        TextButton(
             onPressed: () => Get.back(result: false),
-            child: Text('Cancel',
-                style: TextStyle(color: Colors.grey.shade600)),
-          ),
-          ElevatedButton(
-            onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600))),
+        ElevatedButton(
+          onPressed: () => Get.back(result: true),
+          style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Reject',
-                style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      await _updateBooking(id, 'reject');
-    }
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+          child: const Text('Reject', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    ));
+    if (confirm == true) await _updateBooking(id, 'reject');
   }
 
   Future<void> _updateBooking(int id, String action) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token') ?? '';
-
+      final prefs    = await SharedPreferences.getInstance();
+      final token    = prefs.getString('token') ?? '';
       final response = await http.put(
         Uri.parse('${Constants.baseUrl}/bookings/$id/$action'),
         headers: {
@@ -137,15 +105,13 @@ class _BookingRequestsScreenState
           'Authorization': 'Bearer $token',
         },
       );
-
       if (response.statusCode == 200) {
         Get.snackbar(
           action == 'accept' ? 'Booking Accepted!' : 'Booking Rejected!',
           action == 'accept'
-              ? 'Booking accepted. All other requests have been rejected automatically.'
+              ? 'Booking accepted. All other requests rejected automatically.'
               : 'The booking has been rejected.',
-          backgroundColor:
-              action == 'accept' ? Colors.teal.shade600 : Colors.red,
+          backgroundColor: action == 'accept' ? Colors.teal.shade600 : Colors.red,
           colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM,
         );
@@ -153,14 +119,12 @@ class _BookingRequestsScreenState
       } else {
         final data = jsonDecode(response.body);
         Get.snackbar('Error', data['message'] ?? 'Failed!',
-            backgroundColor: Colors.red,
-            colorText: Colors.white,
+            backgroundColor: Colors.red, colorText: Colors.white,
             snackPosition: SnackPosition.BOTTOM);
       }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to update booking: $e',
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
+      Get.snackbar('Error', 'Failed: $e',
+          backgroundColor: Colors.red, colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM);
     }
   }
@@ -186,31 +150,30 @@ class _BookingRequestsScreenState
     try {
       final date = DateTime.parse(dateStr);
       return '${date.day.toString().padLeft(2, '0')}/'
-          '${date.month.toString().padLeft(2, '0')}/'
-          '${date.year}';
-    } catch (_) {
-      return dateStr;
-    }
+          '${date.month.toString().padLeft(2, '0')}/${date.year}';
+    } catch (_) { return dateStr; }
   }
 
-  // ✅ Helper: check if item is an auction item
-  bool _isAuction(dynamic item) {
-    final val = item['auction_enabled'];
+  bool _isAuction(dynamic booking) {
+    // ✅ Use is_auction field from backend (reliable even after auto-close)
+    final isAuction = booking['is_auction'];
+    if (isAuction != null) {
+      return isAuction == true || isAuction == 1 || isAuction.toString() == 'true';
+    }
+    // fallback: check item
+    final item = booking['item'] ?? {};
+    final val  = item['auction_enabled'];
     return val == true || val == 1 || val.toString() == 'true';
   }
 
-  // ✅ Helper: check if auction has ended
   bool _auctionEnded(dynamic item) {
     if (item['auction_ends_at'] == null) return false;
     try {
-      final endsAt = DateTime.parse(item['auction_ends_at']).toUtc();
-      return DateTime.now().toUtc().isAfter(endsAt);
-    } catch (_) {
-      return false;
-    }
+      return DateTime.now().toUtc()
+          .isAfter(DateTime.parse(item['auction_ends_at']).toUtc());
+    } catch (_) { return false; }
   }
 
-  // ✅ Helper: format auction time left
   String _timeLeft(dynamic item) {
     if (item['auction_ends_at'] == null) return '';
     try {
@@ -218,29 +181,20 @@ class _BookingRequestsScreenState
       final now    = DateTime.now();
       if (now.isAfter(endsAt)) return 'Auction Ended';
       final diff = endsAt.difference(now);
-      if (diff.inDays > 0)   return '${diff.inDays}d left';
-      if (diff.inHours > 0)  return '${diff.inHours}h left';
+      if (diff.inDays > 0)  return '${diff.inDays}d left';
+      if (diff.inHours > 0) return '${diff.inHours}h left';
       return '${diff.inMinutes}m left';
-    } catch (_) {
-      return '';
-    }
+    } catch (_) { return ''; }
   }
 
-  // ✅ Group requests by item_id so we can find highest bidder per item
-  // Returns map of item_id → highest bid_price among confirmed/pending bookings
   Map<int, double> _highestBidPerItem() {
-    // We look at auctions field if returned, otherwise use booking order
-    // Since backend returns bookings sorted by latest, we check auction status
     final Map<int, double> result = {};
     for (final booking in _requests) {
       final item   = booking['item'] ?? {};
       final itemId = item['id'] as int? ?? 0;
-      if (!_isAuction(item)) continue;
-
-      // ✅ Check auction data attached to booking if available
+      if (!_isAuction(booking)) continue;
       final bidPrice = double.tryParse(
-              booking['bid_price']?.toString() ?? '0') ??
-          0.0;
+              booking['bid_price']?.toString() ?? '0') ?? 0.0;
       if (!result.containsKey(itemId) || bidPrice > result[itemId]!) {
         result[itemId] = bidPrice;
       }
@@ -248,9 +202,34 @@ class _BookingRequestsScreenState
     return result;
   }
 
+  Future<void> _contactWinner(dynamic buyer, dynamic item, double bidPrice) async {
+    final phone = (buyer['phone'] ?? '').toString().replaceAll(RegExp(r'[^\d]'), '');
+    final fullPhone = phone.startsWith('975') ? phone : '975$phone';
+    final itemName  = item['item_name'] ?? 'item';
+    final message   = Uri.encodeComponent(
+      '🎉 Congratulations! You won the auction for "$itemName" '
+      'with a bid of Nu. ${bidPrice.toStringAsFixed(2)} on JNEC Eco-Trade (ReDruk). '
+      'Please contact me to arrange the exchange.',
+    );
+    final url = 'https://wa.me/$fullPhone?text=$message';
+
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } else {
+      Get.snackbar(
+        'Cannot Open WhatsApp',
+        phone.isEmpty
+            ? 'Winner has no phone number on their profile.'
+            : 'Could not open WhatsApp.',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // ✅ Group by item to find highest bidder
     final highestBids = _highestBidPerItem();
 
     return Scaffold(
@@ -258,91 +237,65 @@ class _BookingRequestsScreenState
       appBar: AppBar(
         backgroundColor: Colors.teal.shade600,
         foregroundColor: Colors.white,
-        title: const Text(
-          'Booking Requests',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Booking Requests',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
-        ),
+            icon: const Icon(Icons.arrow_back), onPressed: () => Get.back()),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadRequests,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadRequests),
         ],
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Colors.teal))
+          ? const Center(child: CircularProgressIndicator(color: Colors.teal))
           : _requests.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.inbox_outlined,
-                          size: 60, color: Colors.grey.shade300),
-                      const SizedBox(height: 12),
-                      Text('No booking requests yet',
-                          style: TextStyle(
-                              color: Colors.grey.shade400, fontSize: 16)),
-                    ],
-                  ),
-                )
+              ? Center(child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.inbox_outlined, size: 60, color: Colors.grey.shade300),
+                    const SizedBox(height: 12),
+                    Text('No booking requests yet',
+                        style: TextStyle(color: Colors.grey.shade400, fontSize: 16)),
+                  ],
+                ))
               : RefreshIndicator(
                   onRefresh: _loadRequests,
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: _requests.length,
                     itemBuilder: (context, index) {
-                      final booking = _requests[index];
-                      final item    = booking['item'] ?? {};
-                      final buyer   = booking['user'] ?? {};
-                      final status  = booking['status'] ?? 'pending';
-                      final isAuction  = _isAuction(item);
-                      final ended      = _auctionEnded(item);
-                      final timeLeft   = _timeLeft(item);
-                      final itemId     = item['id'] as int? ?? 0;
-
-                      // ✅ Bid price for this booking (if auction)
-                      final bidPrice = double.tryParse(
-                              booking['bid_price']?.toString() ?? '0') ??
-                          0.0;
-
-                      // ✅ Is this the highest bidder for this item?
+                      final booking   = _requests[index];
+                      final item      = booking['item'] ?? {};
+                      final buyer     = booking['user'] ?? {};
+                      final status    = booking['status'] ?? 'pending';
+                      final isAuction = _isAuction(booking);
+                      final ended     = _auctionEnded(item);
+                      final timeLeft  = _timeLeft(item);
+                      final itemId    = item['id'] as int? ?? 0;
+                      final bidPrice  = double.tryParse(
+                              booking['bid_price']?.toString() ?? '0') ?? 0.0;
                       final isHighest = isAuction &&
                           highestBids[itemId] != null &&
                           bidPrice > 0 &&
                           bidPrice == highestBids[itemId];
 
-                      Uint8List? imageBytes;
-                      if (item['image'] != null &&
-                          item['image'].toString().isNotEmpty) {
-                        try {
-                          imageBytes = base64Decode(item['image']);
-                        } catch (_) {}
-                      }
+                      // ✅ Use ImageHelper — handles single base64 AND JSON array
+                      final Uint8List? imageBytes =
+                          ImageHelper.getFirstImage(item['image']);
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          // ✅ Highlight highest bidder card with teal border
                           border: Border.all(
                             color: isHighest
                                 ? Colors.teal.shade400
                                 : Colors.grey.shade200,
                             width: isHighest ? 2 : 1,
                           ),
-                          boxShadow: [
-                            BoxShadow(
+                          boxShadow: [BoxShadow(
                               color: Colors.black.withOpacity(0.06),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                              blurRadius: 4, offset: const Offset(0, 2))],
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(12),
@@ -350,25 +303,23 @@ class _BookingRequestsScreenState
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
 
-                              // ── Auction badge row (top) ──
+                              // ── Auction badge row ──
                               if (isAuction) ...[
                                 Row(
                                   children: [
-                                    // Auction badge
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 8, vertical: 3),
                                       decoration: BoxDecoration(
-                                        color: Colors.teal.shade600,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Row(
+                                          color: Colors.teal.shade600,
+                                          borderRadius: BorderRadius.circular(6)),
+                                      child: const Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.gavel,
+                                          Icon(Icons.gavel,
                                               color: Colors.white, size: 11),
-                                          const SizedBox(width: 4),
-                                          const Text('AUCTION',
+                                          SizedBox(width: 4),
+                                          Text('AUCTION',
                                               style: TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 10,
@@ -377,17 +328,13 @@ class _BookingRequestsScreenState
                                       ),
                                     ),
                                     const SizedBox(width: 8),
-
-                                    // ✅ Highest bidder badge
                                     if (isHighest)
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 8, vertical: 3),
                                         decoration: BoxDecoration(
-                                          color: Colors.amber.shade600,
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                        ),
+                                            color: Colors.amber.shade600,
+                                            borderRadius: BorderRadius.circular(6)),
                                         child: const Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
@@ -398,101 +345,77 @@ class _BookingRequestsScreenState
                                                 style: TextStyle(
                                                     color: Colors.white,
                                                     fontSize: 10,
-                                                    fontWeight:
-                                                        FontWeight.bold)),
+                                                    fontWeight: FontWeight.bold)),
                                           ],
                                         ),
                                       ),
-
                                     const Spacer(),
-
-                                    // Time left / ended
-                                    Text(
-                                      timeLeft,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: ended
-                                            ? Colors.red
-                                            : Colors.orange.shade700,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
+                                    Text(timeLeft,
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: ended
+                                                ? Colors.red
+                                                : Colors.orange.shade700,
+                                            fontWeight: FontWeight.w600)),
                                   ],
                                 ),
                                 const SizedBox(height: 10),
                               ],
 
-                              // ── Item Info Row ──
+                              // ── Item info row ──
                               Row(
                                 children: [
+                                  // ✅ Image using ImageHelper
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(8),
                                     child: SizedBox(
-                                      width: 70,
-                                      height: 70,
+                                      width: 70, height: 70,
                                       child: imageBytes != null
                                           ? Image.memory(imageBytes,
                                               fit: BoxFit.cover)
                                           : Container(
                                               color: Colors.grey.shade100,
                                               child: Icon(Icons.image_outlined,
-                                                  color: Colors.grey.shade300),
-                                            ),
+                                                  color: Colors.grey.shade300)),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          item['item_name'] ?? '',
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 15),
-                                        ),
+                                        Text(item['item_name'] ?? '',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15)),
                                         const SizedBox(height: 4),
-
-                                        // ✅ Show bid price for auction, regular price for normal
                                         if (isAuction && bidPrice > 0)
                                           Text(
                                             'Bid: Nu. ${bidPrice.toStringAsFixed(2)}',
                                             style: TextStyle(
-                                              color: Colors.teal.shade700,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 13,
-                                            ),
+                                                color: Colors.teal.shade700,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 13),
                                           )
                                         else
-                                          Text(
-                                            'Nu. ${item['price'] ?? ''}',
-                                            style: TextStyle(
-                                              color: Colors.teal.shade600,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-
+                                          Text('Nu. ${item['price'] ?? ''}',
+                                              style: TextStyle(
+                                                  color: Colors.teal.shade600,
+                                                  fontWeight: FontWeight.w600)),
                                         const SizedBox(height: 4),
-
-                                        // Status badge
                                         Container(
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 8, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: _statusColor(status)
-                                                .withOpacity(0.1),
-                                            borderRadius:
-                                                BorderRadius.circular(20),
-                                          ),
-                                          child: Text(
-                                            _statusLabel(status),
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: _statusColor(status),
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
+                                              color: _statusColor(status)
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(20)),
+                                          child: Text(_statusLabel(status),
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: _statusColor(status),
+                                                  fontWeight: FontWeight.bold)),
                                         ),
                                       ],
                                     ),
@@ -504,7 +427,7 @@ class _BookingRequestsScreenState
                               Divider(color: Colors.grey.shade200),
                               const SizedBox(height: 8),
 
-                              // ── Buyer Info ──
+                              // ── Buyer info ──
                               Row(
                                 children: [
                                   Icon(Icons.person_outline,
@@ -535,7 +458,7 @@ class _BookingRequestsScreenState
                                 ],
                               ),
 
-                              // ── Auction info banner — shown only while auction still running ──
+                              // ── Info banner (auction in progress) ──
                               if (isAuction && status == 'pending' && !ended) ...[
                                 const SizedBox(height: 10),
                                 Container(
@@ -545,7 +468,8 @@ class _BookingRequestsScreenState
                                   decoration: BoxDecoration(
                                     color: Colors.blue.shade50,
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.blue.shade200),
+                                    border:
+                                        Border.all(color: Colors.blue.shade200),
                                   ),
                                   child: Row(
                                     children: [
@@ -556,7 +480,7 @@ class _BookingRequestsScreenState
                                         child: Text(
                                           isHighest
                                               ? 'This is the highest bidder. You can accept now or wait for auction to end.'
-                                              : 'Auction in progress. You can accept any bidder manually or wait for auto-close.',
+                                              : 'Auction in progress. Accept any bidder manually or wait for auto-close.',
                                           style: TextStyle(
                                               fontSize: 11,
                                               color: Colors.blue.shade700),
@@ -567,7 +491,7 @@ class _BookingRequestsScreenState
                                 ),
                               ],
 
-                              // ── Accept / Reject — ALL pending bookings (auction + normal) ──
+                              // ── Accept / Reject buttons ──
                               if (status == 'pending') ...[
                                 const SizedBox(height: 12),
                                 Row(
@@ -579,7 +503,6 @@ class _BookingRequestsScreenState
                                           onPressed: () =>
                                               _acceptBooking(booking['id']),
                                           style: ElevatedButton.styleFrom(
-                                            // ✅ Gold for highest bidder, teal for others
                                             backgroundColor: isHighest
                                                 ? Colors.amber.shade600
                                                 : Colors.teal.shade600,
@@ -588,7 +511,9 @@ class _BookingRequestsScreenState
                                                     BorderRadius.circular(8)),
                                           ),
                                           child: Text(
-                                            isHighest ? 'Accept Winner' : 'Accept',
+                                            isHighest
+                                                ? 'Accept Winner'
+                                                : 'Accept',
                                             style: const TextStyle(
                                                 color: Colors.white,
                                                 fontWeight: FontWeight.bold),
@@ -604,7 +529,8 @@ class _BookingRequestsScreenState
                                           onPressed: () =>
                                               _rejectBooking(booking['id']),
                                           style: OutlinedButton.styleFrom(
-                                            side: const BorderSide(color: Colors.red),
+                                            side: const BorderSide(
+                                                color: Colors.red),
                                             shape: RoundedRectangleBorder(
                                                 borderRadius:
                                                     BorderRadius.circular(8)),
@@ -620,7 +546,7 @@ class _BookingRequestsScreenState
                                 ),
                               ],
 
-                              // ✅ Auction confirmed — show winner confirmation + WhatsApp button
+                              // ── Winner confirmed — WhatsApp button ──
                               if (isAuction && status == 'confirmed') ...[
                                 const SizedBox(height: 10),
                                 Container(
@@ -641,60 +567,35 @@ class _BookingRequestsScreenState
                                       const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
-                                          'This buyer won the auction with a bid of Nu. ${bidPrice.toStringAsFixed(2)}',
+                                          'Winner: ${buyer['name'] ?? ''} — '
+                                          'Bid: Nu. ${bidPrice.toStringAsFixed(2)}',
                                           style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.green.shade700,
-                                            fontWeight: FontWeight.w600,
-                                          ),
+                                              fontSize: 11,
+                                              color: Colors.green.shade700,
+                                              fontWeight: FontWeight.w600),
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
                                 const SizedBox(height: 10),
-
-                                // ✅ WhatsApp button — contact the winner
+                                // ✅ WhatsApp button to contact winner
                                 SizedBox(
                                   width: double.infinity,
                                   height: 44,
                                   child: ElevatedButton.icon(
-                                    onPressed: () async {
-                                      // ✅ Get winner's phone from user data
-                                      final winnerPhone = buyer['phone']?.toString() ?? '';
-                                      String phone = winnerPhone.replaceAll(RegExp(r'[^\d]'), '');
-                                      if (!phone.startsWith('975')) phone = '975$phone';
-
-                                      final itemName = item['item_name'] ?? 'item';
-                                      final message  = Uri.encodeComponent(
-                                        '🎉 Congratulations! You won the auction for "$itemName" '
-                                        'with a bid of Nu. ${bidPrice.toStringAsFixed(2)} on JNEC Eco-Trade (ReDruk). '
-                                        'Please contact me to arrange the exchange.',
-                                      );
-                                      final url = 'https://wa.me/$phone?text=$message';
-
-                                      if (await canLaunchUrl(Uri.parse(url))) {
-                                        await launchUrl(Uri.parse(url),
-                                            mode: LaunchMode.externalApplication);
-                                      } else {
-                                        Get.snackbar(
-                                          'Cannot Open WhatsApp',
-                                          winnerPhone.isEmpty
-                                              ? 'Winner has no phone number on their profile.'
-                                              : 'Could not open WhatsApp.',
-                                          backgroundColor: Colors.red,
-                                          colorText: Colors.white,
-                                          snackPosition: SnackPosition.BOTTOM,
-                                        );
-                                      }
-                                    },
+                                    onPressed: () =>
+                                        _contactWinner(buyer, item, bidPrice),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF25D366),
                                       shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(30)),
+                                          borderRadius:
+                                              BorderRadius.circular(30)),
                                     ),
-                                    icon: const Icon(Icons.chat,
-                                        color: Colors.white, size: 18),
+                                    icon: const FaIcon(
+                                        FontAwesomeIcons.whatsapp,
+                                        color: Colors.white,
+                                        size: 18),
                                     label: const Text(
                                       'Contact Winner on WhatsApp',
                                       style: TextStyle(
