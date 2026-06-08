@@ -727,7 +727,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       ),
                       icon: Icon(
-                        _cartController.isInCart(widget.item) ? Icons.shopping_cart_checkout : Icons.shopping_cart_checkout,
+                        _cartController.isInCart(widget.item) ? Icons.shopping_cart : Icons.shopping_cart_outlined,
                         color: Colors.white, size: 18),
                       label: Text(
                         _cartController.isInCart(widget.item) ? 'Added to Wishlist' : 'Add to Wishlist',

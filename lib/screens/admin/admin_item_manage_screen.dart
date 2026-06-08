@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/constants.dart';
+import '../../utils/image_helper.dart';
 
 const kAdminColor = Color(0xFF00897B);
 
@@ -27,11 +28,12 @@ class _AdminItemManageScreenState
     extends State<AdminItemManageScreen> {
   late List<dynamic> _allItems;
   List<dynamic> _filteredItems = [];
-  String _searchText           = '';
-  String _selectedFilter       = 'All';
+  String _searchText     = '';
+  String _selectedFilter = 'All';
 
+  // ✅ Added Auction tab
   final List<String> _filters = [
-    'All', 'Available', 'Booked', 'Sold'
+    'All', 'Available', 'Booked', 'Sold', 'Auction'
   ];
 
   @override
@@ -44,28 +46,21 @@ class _AdminItemManageScreenState
   void _applyFilter() {
     setState(() {
       _filteredItems = _allItems.where((item) {
-        final name   =
-            (item['item_name'] ?? '')
-                .toString()
-                .toLowerCase();
-        final status =
-            (item['status'] ?? 'available')
-                .toString()
-                .toLowerCase();
+        final name   = (item['item_name'] ?? '').toString().toLowerCase();
+        final status = (item['status'] ?? 'available').toString().toLowerCase();
+        final auctionVal = item['auction_enabled'];
+        final isAuction  = auctionVal == true ||
+            auctionVal == 1 ||
+            auctionVal.toString() == 'true';
 
-        final matchSearch =
-            _searchText.isEmpty ||
-            name.contains(
-                _searchText.toLowerCase());
+        final matchSearch = _searchText.isEmpty ||
+            name.contains(_searchText.toLowerCase());
 
-        final matchFilter =
-            _selectedFilter == 'All' ||
-            (_selectedFilter == 'Available' &&
-                status == 'available') ||
-            (_selectedFilter == 'Booked' &&
-                status == 'booked') ||
-            (_selectedFilter == 'Sold' &&
-                status == 'sold');
+        final matchFilter = _selectedFilter == 'All' ||
+            (_selectedFilter == 'Available' && status == 'available' && !isAuction) ||
+            (_selectedFilter == 'Booked'    && status == 'booked') ||
+            (_selectedFilter == 'Sold'      && status == 'sold') ||
+            (_selectedFilter == 'Auction'   && isAuction);
 
         return matchSearch && matchFilter;
       }).toList();
@@ -73,40 +68,27 @@ class _AdminItemManageScreenState
   }
 
   Future<String> _getToken() async {
-    final prefs =
-        await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token') ?? '';
   }
 
-  // ✅ Delete item
-  Future<void> _deleteItem(
-      int itemId, String itemName) async {
+  Future<void> _deleteItem(int itemId, String itemName) async {
     final confirm = await Get.dialog<bool>(
       AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Item'),
         content: Text('Delete "$itemName"?'),
         actions: [
           TextButton(
-            onPressed: () =>
-                Get.back(result: false),
-            child: Text('Cancel',
-                style: TextStyle(
-                    color: Colors.grey.shade600)),
+            onPressed: () => Get.back(result: false),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
           ),
           ElevatedButton(
-            onPressed: () =>
-                Get.back(result: true),
+            onPressed: () => Get.back(result: true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(8)),
-            ),
-            child: const Text('Delete',
-                style: TextStyle(
-                    color: Colors.white)),
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -116,194 +98,175 @@ class _AdminItemManageScreenState
       try {
         final token    = await _getToken();
         final response = await http.delete(
-          Uri.parse(
-              '${Constants.baseUrl}/admin/items/$itemId'),
+          Uri.parse('${Constants.baseUrl}/admin/items/$itemId'),
           headers: {
             'Content-Type':  'application/json',
             'Accept':        'application/json',
             'Authorization': 'Bearer $token',
           },
         );
-
         if (response.statusCode == 200) {
           setState(() {
-            _allItems.removeWhere(
-                (item) => item['id'] == itemId);
+            _allItems.removeWhere((item) => item['id'] == itemId);
             _applyFilter();
           });
           widget.onRefresh();
           Get.snackbar('Deleted', 'Item deleted!',
-              backgroundColor: kAdminColor,
-              colorText: Colors.white,
+              backgroundColor: kAdminColor, colorText: Colors.white,
               snackPosition: SnackPosition.BOTTOM);
         } else {
           Get.snackbar('Error', 'Failed to delete!',
-              backgroundColor: Colors.red,
-              colorText: Colors.white,
+              backgroundColor: Colors.red, colorText: Colors.white,
               snackPosition: SnackPosition.BOTTOM);
         }
       } catch (e) {
         Get.snackbar('Error', 'Error: $e',
-            backgroundColor: Colors.red,
-            colorText: Colors.white,
+            backgroundColor: Colors.red, colorText: Colors.white,
             snackPosition: SnackPosition.BOTTOM);
       }
     }
   }
 
-  // ✅ Edit item details
   Future<void> _editItem(dynamic item) async {
-    final nameController = TextEditingController(
-        text: item['item_name']);
-    final priceController = TextEditingController(
-        text: item['price'].toString());
-    final locationController = TextEditingController(
-        text: item['location'] ?? '');
+    final nameController     = TextEditingController(text: item['item_name']);
+    final priceController    = TextEditingController(text: item['price'].toString());
+    final locationController = TextEditingController(text: item['location'] ?? '');
+    final minBidController   = TextEditingController(
+        text: item['min_bid_price']?.toString() ?? '');
 
-    String selectedCondition =
-        item['condition'] ?? 'used';
-    String selectedCategory =
-        item['category'] ?? 'others';
+    String selectedCondition = item['condition'] ?? 'used';
+    String selectedCategory  = item['category']  ?? 'others';
+
+    final auctionVal = item['auction_enabled'];
+    final isAuction  = auctionVal == true ||
+        auctionVal == 1 ||
+        auctionVal.toString() == 'true';
 
     final conditions = ['new', 'used', 'like_new'];
     final categories = [
       'stationary', 'clothing', 'furniture',
-      'kitchen_utensils', 'electronic',
-      'miscellaneous', 'others'
+      'kitchen_utensils', 'electronic', 'miscellaneous', 'others'
     ];
+
+    String _fmt(String s) =>
+        s[0].toUpperCase() + s.substring(1).replaceAll('_', ' ');
 
     final confirm = await Get.dialog<bool>(
       AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
-        title: const Text('Edit Item'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            if (isAuction) ...[
+              Icon(Icons.gavel, color: Colors.teal.shade600, size: 18),
+              const SizedBox(width: 6),
+            ],
+            Text(isAuction ? 'Edit Auction Item' : 'Edit Item'),
+          ],
+        ),
         content: SingleChildScrollView(
           child: StatefulBuilder(
-            builder: (context, setStateDialog) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+            builder: (context, setStateDialog) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
 
-                  // ── Item Name ──
+                // ── Item Name ──
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Item Name',
+                    labelStyle: TextStyle(color: Colors.black54),
+                    focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: kAdminColor)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // ── Price ──
+                TextField(
+                  controller: priceController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Price (Nu.)',
+                    labelStyle: TextStyle(color: Colors.black54),
+                    focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: kAdminColor)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // ✅ Min bid price (auction only)
+                if (isAuction) ...[
                   TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Item Name',
-                      labelStyle: TextStyle(
-                          color: Colors.black54),
-                      focusedBorder:
-                          UnderlineInputBorder(
-                              borderSide: BorderSide(
-                                  color: kAdminColor)),
+                    controller: minBidController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Min Bid Price (Nu.)',
+                      labelStyle: TextStyle(color: Colors.teal.shade600),
+                      focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: kAdminColor)),
+                      prefixIcon: Icon(Icons.gavel,
+                          color: Colors.teal.shade600, size: 18),
                     ),
                   ),
                   const SizedBox(height: 12),
-
-                  // ── Price ──
-                  TextField(
-                    controller: priceController,
-                    keyboardType:
-                        TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Price (Nu.)',
-                      labelStyle: TextStyle(
-                          color: Colors.black54),
-                      focusedBorder:
-                          UnderlineInputBorder(
-                              borderSide: BorderSide(
-                                  color: kAdminColor)),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // ── Condition ──
-                  DropdownButtonFormField<String>(
-                    value: selectedCondition,
-                    decoration: const InputDecoration(
-                      labelText: 'Condition',
-                      labelStyle: TextStyle(
-                          color: Colors.black54),
-                    ),
-                    items: conditions.map((c) {
-                      return DropdownMenuItem(
-                        value: c,
-                        child: Text(
-                          c[0].toUpperCase() +
-                              c.substring(1)
-                                  .replaceAll(
-                                      '_', ' '),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (val) =>
-                        setStateDialog(() =>
-                            selectedCondition = val!),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // ── Category ──
-                  DropdownButtonFormField<String>(
-                    value: selectedCategory,
-                    decoration: const InputDecoration(
-                      labelText: 'Category',
-                      labelStyle: TextStyle(
-                          color: Colors.black54),
-                    ),
-                    items: categories.map((c) {
-                      return DropdownMenuItem(
-                        value: c,
-                        child: Text(
-                          c[0].toUpperCase() +
-                              c.substring(1)
-                                  .replaceAll(
-                                      '_', ' '),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (val) =>
-                        setStateDialog(() =>
-                            selectedCategory = val!),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // ── Location ──
-                  TextField(
-                    controller: locationController,
-                    decoration: const InputDecoration(
-                      labelText: 'Location',
-                      labelStyle: TextStyle(
-                          color: Colors.black54),
-                      focusedBorder:
-                          UnderlineInputBorder(
-                              borderSide: BorderSide(
-                                  color: kAdminColor)),
-                    ),
-                  ),
                 ],
-              );
-            },
+
+                // ── Condition ──
+                DropdownButtonFormField<String>(
+                  value: selectedCondition,
+                  decoration: const InputDecoration(
+                    labelText: 'Condition',
+                    labelStyle: TextStyle(color: Colors.black54),
+                  ),
+                  items: conditions
+                      .map((c) => DropdownMenuItem(value: c, child: Text(_fmt(c))))
+                      .toList(),
+                  onChanged: (val) =>
+                      setStateDialog(() => selectedCondition = val!),
+                ),
+                const SizedBox(height: 12),
+
+                // ── Category ──
+                DropdownButtonFormField<String>(
+                  value: selectedCategory,
+                  decoration: const InputDecoration(
+                    labelText: 'Category',
+                    labelStyle: TextStyle(color: Colors.black54),
+                  ),
+                  items: categories
+                      .map((c) => DropdownMenuItem(value: c, child: Text(_fmt(c))))
+                      .toList(),
+                  onChanged: (val) =>
+                      setStateDialog(() => selectedCategory = val!),
+                ),
+                const SizedBox(height: 12),
+
+                // ── Location ──
+                TextField(
+                  controller: locationController,
+                  decoration: const InputDecoration(
+                    labelText: 'Location',
+                    labelStyle: TextStyle(color: Colors.black54),
+                    focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: kAdminColor)),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () =>
-                Get.back(result: false),
-            child: Text('Cancel',
-                style: TextStyle(
-                    color: Colors.grey.shade600)),
+            onPressed: () => Get.back(result: false),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
           ),
           ElevatedButton(
-            onPressed: () =>
-                Get.back(result: true),
+            onPressed: () => Get.back(result: true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: kAdminColor,
-              shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(8)),
-            ),
-            child: const Text('Save',
-                style: TextStyle(
-                    color: Colors.white)),
+                backgroundColor: kAdminColor,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8))),
+            child: const Text('Save', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -311,53 +274,48 @@ class _AdminItemManageScreenState
 
     if (confirm == true) {
       try {
-        final token    = await _getToken();
+        final token  = await _getToken();
+        final body   = <String, dynamic>{
+          'item_name': nameController.text,
+          'price':     double.tryParse(priceController.text) ?? 0,
+          'condition': selectedCondition,
+          'category':  selectedCategory,
+          'location':  locationController.text,
+        };
+        if (isAuction && minBidController.text.isNotEmpty) {
+          body['min_bid_price'] = double.tryParse(minBidController.text);
+        }
+
         final response = await http.put(
-          Uri.parse(
-              '${Constants.baseUrl}/admin/items/${item['id']}'),
+          Uri.parse('${Constants.baseUrl}/admin/items/${item['id']}'),
           headers: {
             'Content-Type':  'application/json',
             'Accept':        'application/json',
             'Authorization': 'Bearer $token',
           },
-          body: jsonEncode({
-            'item_name': nameController.text,
-            'price': double.tryParse(
-                    priceController.text) ??
-                0,
-            'condition': selectedCondition,
-            'category':  selectedCategory,
-            'location':  locationController.text,
-          }),
+          body: jsonEncode(body),
         );
 
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
           setState(() {
-            final idx = _allItems.indexWhere(
-                (i) => i['id'] == item['id']);
-            if (idx != -1) {
-              _allItems[idx] = data['item'];
-            }
+            final idx = _allItems.indexWhere((i) => i['id'] == item['id']);
+            if (idx != -1) _allItems[idx] = data['item'];
             _applyFilter();
           });
           widget.onRefresh();
           Get.snackbar('Updated', 'Item updated!',
-              backgroundColor: kAdminColor,
-              colorText: Colors.white,
+              backgroundColor: kAdminColor, colorText: Colors.white,
               snackPosition: SnackPosition.BOTTOM);
         } else {
           final data = jsonDecode(response.body);
-          Get.snackbar('Error',
-              data['message'] ?? 'Failed!',
-              backgroundColor: Colors.red,
-              colorText: Colors.white,
+          Get.snackbar('Error', data['message'] ?? 'Failed!',
+              backgroundColor: Colors.red, colorText: Colors.white,
               snackPosition: SnackPosition.BOTTOM);
         }
       } catch (e) {
         Get.snackbar('Error', 'Error: $e',
-            backgroundColor: Colors.red,
-            colorText: Colors.white,
+            backgroundColor: Colors.red, colorText: Colors.white,
             snackPosition: SnackPosition.BOTTOM);
       }
     }
@@ -365,9 +323,9 @@ class _AdminItemManageScreenState
     nameController.dispose();
     priceController.dispose();
     locationController.dispose();
+    minBidController.dispose();
   }
 
-  // ✅ Status colors
   Color _statusColor(String status) {
     switch (status) {
       case 'available': return Colors.green.shade600;
@@ -379,21 +337,17 @@ class _AdminItemManageScreenState
 
   Color _statusBgColor(String status) {
     switch (status) {
-      case 'available':
-        return Colors.green.withOpacity(0.1);
-      case 'booked':
-        return Colors.orange.withOpacity(0.1);
-      case 'sold':
-        return Colors.red.withOpacity(0.1);
-      default:
-        return Colors.grey.withOpacity(0.1);
+      case 'available': return Colors.green.withOpacity(0.1);
+      case 'booked':    return Colors.orange.withOpacity(0.1);
+      case 'sold':      return Colors.red.withOpacity(0.1);
+      default:          return Colors.grey.withOpacity(0.1);
     }
   }
 
   String _statusLabel(String status) {
     switch (status) {
       case 'available': return 'Available';
-      case 'booked':    return 'Booked (Negotiating)';
+      case 'booked':    return 'Booked';
       case 'sold':      return 'Sold';
       default:          return status;
     }
@@ -406,13 +360,10 @@ class _AdminItemManageScreenState
       appBar: AppBar(
         backgroundColor: kAdminColor,
         foregroundColor: Colors.white,
-        title: const Text('Manage Item',
-            style: TextStyle(
-                fontWeight: FontWeight.bold)),
+        title: const Text('Manage Items',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
-        ),
+            icon: const Icon(Icons.arrow_back), onPressed: () => Get.back()),
       ),
       body: Column(
         children: [
@@ -420,8 +371,7 @@ class _AdminItemManageScreenState
           // ── Search Bar ──
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(
-                16, 12, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: TextField(
               onChanged: (val) {
                 _searchText = val;
@@ -429,22 +379,14 @@ class _AdminItemManageScreenState
               },
               decoration: InputDecoration(
                 hintText: 'Search items...',
-                hintStyle: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontSize: 13),
-                prefixIcon: const Icon(
-                    Icons.search,
-                    color: Colors.grey),
+                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 filled: true,
                 fillColor: Colors.grey.shade100,
                 border: OutlineInputBorder(
-                  borderRadius:
-                      BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(
-                        vertical: 0),
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
               ),
             ),
           ),
@@ -452,51 +394,50 @@ class _AdminItemManageScreenState
           // ── Filter Chips ──
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(
-                16, 0, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: _filters.map((filter) {
-                  final isSelected =
-                      _selectedFilter == filter;
+                  final isSelected = _selectedFilter == filter;
                   return GestureDetector(
                     onTap: () {
-                      setState(() {
-                        _selectedFilter = filter;
-                      });
+                      setState(() => _selectedFilter = filter);
                       _applyFilter();
                     },
                     child: Container(
-                      margin: const EdgeInsets.only(
-                          right: 8),
-                      padding:
-                          const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 6),
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
                       decoration: BoxDecoration(
-                        color: isSelected
-                            ? kAdminColor
-                            : Colors.grey.shade100,
-                        borderRadius:
-                            BorderRadius.circular(20),
+                        color: isSelected ? kAdminColor : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: isSelected
-                              ? kAdminColor
-                              : Colors.grey.shade300,
-                        ),
+                            color: isSelected
+                                ? kAdminColor
+                                : Colors.grey.shade300),
                       ),
-                      child: Text(
-                        filter,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isSelected
-                              ? Colors.white
-                              : Colors.black54,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (filter == 'Auction') ...[
+                            Icon(Icons.gavel,
+                                size: 12,
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.black54),
+                            const SizedBox(width: 4),
+                          ],
+                          Text(filter,
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.black54,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal)),
+                        ],
                       ),
                     ),
                   );
@@ -507,17 +448,11 @@ class _AdminItemManageScreenState
 
           // ── Item Count ──
           Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Row(
               children: [
-                Text(
-                  '${_filteredItems.length} items',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 13,
-                  ),
-                ),
+                Text('${_filteredItems.length} items',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
               ],
             ),
           ),
@@ -525,92 +460,63 @@ class _AdminItemManageScreenState
           // ── Items List ──
           Expanded(
             child: _filteredItems.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment:
-                          MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                            Icons.inventory_2_outlined,
-                            size: 60,
-                            color: Colors.grey.shade300),
-                        const SizedBox(height: 12),
-                        Text('No items found',
-                            style: TextStyle(
-                                color:
-                                    Colors.grey.shade400,
-                                fontSize: 16)),
-                      ],
-                    ),
-                  )
+                ? Center(child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.inventory_2_outlined,
+                          size: 60, color: Colors.grey.shade300),
+                      const SizedBox(height: 12),
+                      Text('No items found',
+                          style: TextStyle(
+                              color: Colors.grey.shade400, fontSize: 16)),
+                    ],
+                  ))
                 : ListView.builder(
-                    padding:
-                        const EdgeInsets.fromLTRB(
-                            16, 0, 16, 16),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     itemCount: _filteredItems.length,
                     itemBuilder: (context, index) {
-                      final item =
-                          _filteredItems[index];
-                      final status =
-                          item['status'] ??
-                              'available';
+                      final item   = _filteredItems[index];
+                      final status = item['status'] ?? 'available';
+                      final auctionVal = item['auction_enabled'];
+                      final isAuction  = auctionVal == true ||
+                          auctionVal == 1 ||
+                          auctionVal.toString() == 'true';
 
-                      Uint8List? imageBytes;
-                      if (item['image'] != null &&
-                          item['image']
-                              .toString()
-                              .isNotEmpty) {
-                        try {
-                          imageBytes = base64Decode(
-                              item['image']);
-                        } catch (_) {}
-                      }
+                      // ✅ Use ImageHelper — handles both single base64 and JSON array
+                      final Uint8List? imageBytes =
+                          ImageHelper.getFirstImage(item['image']);
 
                       return Container(
-                        margin: const EdgeInsets.only(
-                            bottom: 12),
-                        padding:
-                            const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius:
-                              BorderRadius.circular(
-                                  12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black
-                                  .withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isAuction
+                                ? Colors.teal.shade200
+                                : Colors.grey.shade200,
+                            width: isAuction ? 1.5 : 1,
+                          ),
+                          boxShadow: [BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
                               blurRadius: 4,
-                              offset:
-                                  const Offset(0, 2),
-                            ),
-                          ],
+                              offset: const Offset(0, 2))],
                         ),
                         child: Row(
                           children: [
 
                             // ── Image ──
                             ClipRRect(
-                              borderRadius:
-                                  BorderRadius.circular(
-                                      8),
+                              borderRadius: BorderRadius.circular(8),
                               child: SizedBox(
-                                width: 65,
-                                height: 65,
+                                width: 65, height: 65,
                                 child: imageBytes != null
-                                    ? Image.memory(
-                                        imageBytes,
-                                        fit: BoxFit.cover)
+                                    ? Image.memory(imageBytes, fit: BoxFit.cover)
                                     : Container(
-                                        color: Colors
-                                            .grey.shade100,
-                                        child: Icon(
-                                          Icons
-                                              .image_outlined,
-                                          color: Colors
-                                              .grey.shade300,
-                                        ),
-                                      ),
+                                        color: Colors.grey.shade100,
+                                        child: Icon(Icons.image_outlined,
+                                            color: Colors.grey.shade300)),
                               ),
                             ),
 
@@ -619,87 +525,85 @@ class _AdminItemManageScreenState
                             // ── Info ──
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment
-                                        .start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    item['item_name'] ??
-                                        '',
-                                    style:
-                                        const TextStyle(
-                                      fontWeight:
-                                          FontWeight.bold,
-                                      fontSize: 13,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow
-                                        .ellipsis,
-                                  ),
-                                  const SizedBox(
-                                      height: 3),
-                                  Text(
-                                    'Nu. ${item['price']}',
-                                    style:
-                                        const TextStyle(
-                                      color: kAdminColor,
-                                      fontSize: 12,
-                                      fontWeight:
-                                          FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(
-                                      height: 4),
-
-                                  // ── Status Badge ──
-                                  Container(
-                                    padding: const EdgeInsets
-                                        .symmetric(
-                                        horizontal: 8,
-                                        vertical: 3),
-                                    decoration:
-                                        BoxDecoration(
-                                      color:
-                                          _statusBgColor(
-                                              status),
-                                      borderRadius:
-                                          BorderRadius
-                                              .circular(
-                                                  20),
-                                      border: Border.all(
-                                        color: _statusColor(
-                                                status)
-                                            .withOpacity(
-                                                0.3),
+                                  // Name + auction badge
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(item['item_name'] ?? '',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis),
                                       ),
-                                    ),
-                                    child: Text(
-                                      _statusLabel(
-                                          status),
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color:
-                                            _statusColor(
-                                                status),
-                                        fontWeight:
-                                            FontWeight
-                                                .bold,
+                                      if (isAuction)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 5, vertical: 1),
+                                          decoration: BoxDecoration(
+                                              color: Colors.teal.shade50,
+                                              borderRadius:
+                                                  BorderRadius.circular(6)),
+                                          child: Text('Auction',
+                                              style: TextStyle(
+                                                  fontSize: 9,
+                                                  color: Colors.teal.shade700,
+                                                  fontWeight: FontWeight.bold)),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text('Nu. ${item['price']}',
+                                      style: const TextStyle(
+                                          color: kAdminColor,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 3),
+
+                                  // Status + auction time left
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                            color: _statusBgColor(status),
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(
+                                                color: _statusColor(status)
+                                                    .withOpacity(0.3))),
+                                        child: Text(_statusLabel(status),
+                                            style: TextStyle(
+                                                fontSize: 10,
+                                                color: _statusColor(status),
+                                                fontWeight: FontWeight.bold)),
                                       ),
-                                    ),
+                                      if (isAuction &&
+                                          item['auction_ends_at'] != null) ...[
+                                        const SizedBox(width: 6),
+                                        Text(_timeLeft(item['auction_ends_at']),
+                                            style: TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.orange.shade700,
+                                                fontWeight: FontWeight.w500)),
+                                      ],
+                                    ],
                                   ),
 
-                                  const SizedBox(
-                                      height: 3),
-                                  Text(
-                                    item['user'] != null
-                                        ? 'By: ${item['user']['name']}'
-                                        : '',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors
-                                          .grey.shade500,
-                                    ),
-                                  ),
+                                  const SizedBox(height: 3),
+                                  if (item['user'] != null)
+                                    Text('By: ${item['user']['name']}',
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey.shade500)),
+                                  if (isAuction &&
+                                      item['min_bid_price'] != null)
+                                    Text('Min bid: Nu.${item['min_bid_price']}',
+                                        style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.grey.shade500)),
                                 ],
                               ),
                             ),
@@ -707,25 +611,16 @@ class _AdminItemManageScreenState
                             // ── Edit + Delete ──
                             Column(
                               children: [
-                                // ✅ Edit button
                                 IconButton(
-                                  icon: const Icon(
-                                      Icons.edit_outlined,
-                                      color: kAdminColor,
-                                      size: 22),
-                                  onPressed: () =>
-                                      _editItem(item),
+                                  icon: const Icon(Icons.edit_outlined,
+                                      color: kAdminColor, size: 22),
+                                  onPressed: () => _editItem(item),
                                 ),
-                                // ✅ Delete button
                                 IconButton(
-                                  icon: const Icon(
-                                      Icons.delete_outline,
-                                      color: Colors.red,
-                                      size: 22),
+                                  icon: const Icon(Icons.delete_outline,
+                                      color: Colors.red, size: 22),
                                   onPressed: () =>
-                                      _deleteItem(
-                                          item['id'],
-                                          item['item_name']),
+                                      _deleteItem(item['id'], item['item_name']),
                                 ),
                               ],
                             ),
@@ -738,5 +633,18 @@ class _AdminItemManageScreenState
         ],
       ),
     );
+  }
+
+  String _timeLeft(String? endsAt) {
+    if (endsAt == null) return '';
+    try {
+      final end  = DateTime.parse(endsAt).toLocal();
+      final now  = DateTime.now();
+      if (now.isAfter(end)) return 'Ended';
+      final diff = end.difference(now);
+      if (diff.inDays > 0)  return '${diff.inDays}d left';
+      if (diff.inHours > 0) return '${diff.inHours}h left';
+      return '${diff.inMinutes}m left';
+    } catch (_) { return ''; }
   }
 }
