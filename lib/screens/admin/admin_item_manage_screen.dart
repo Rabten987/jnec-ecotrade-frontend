@@ -33,7 +33,7 @@ class _AdminItemManageScreenState
 
   // ✅ Added Auction tab
   final List<String> _filters = [
-    'All', 'Regular', 'Auction', 'Sold'
+    'All', 'Available', 'Regular', 'Auction', 'Sold'
   ];
 
   @override
@@ -57,9 +57,10 @@ class _AdminItemManageScreenState
             name.contains(_searchText.toLowerCase());
 
         final matchFilter = _selectedFilter == 'All' ||
-          (_selectedFilter == 'Regular' && !isAuction) ||
-          (_selectedFilter == 'Auction' && isAuction) ||
-          (_selectedFilter == 'Sold'    && status == 'sold');
+          (_selectedFilter == 'Available' && status != 'sold') ||
+          (_selectedFilter == 'Regular'   && !isAuction && status != 'sold') ||
+          (_selectedFilter == 'Auction'   && isAuction  && status != 'sold') ||
+          (_selectedFilter == 'Sold'      && status == 'sold');
 
         return matchSearch && matchFilter;
       }).toList();
