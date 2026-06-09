@@ -27,6 +27,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 
+	<!-- ✅ Google Sign In -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -39,17 +40,30 @@
 		</dict>
 	</array>
 
+	<!-- ✅ WhatsApp -->
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>whatsapp</string>
 	</array>
 
+	<!-- ✅ Permissions -->
 	<key>NSCameraUsageDescription</key>
 	<string>JNEC Eco-Trade needs camera access to take photos of items.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>JNEC Eco-Trade needs photo library access to upload photos.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>JNEC Eco-Trade needs access to save photos.</string>
+
+	<!-- ✅ Firebase -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
+
+	<!-- ✅ Background modes for push notifications -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 
 	<key>UIApplicationSceneManifest</key>
 	<dict>

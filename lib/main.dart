@@ -28,23 +28,20 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  // Background message received — handled by system tray automatically
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Initialize Firebase with options
+  // ✅ Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
   // ✅ Set background message handler
-  FirebaseMessaging.onBackgroundMessage(
-      _firebaseMessagingBackgroundHandler);
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // ✅ Auto-refresh FCM token when it changes
-  //    Ensures backend always has a valid token
+  // ✅ Auto-refresh FCM token
   FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
     debugPrint('FCM Token refreshed: $newToken');
     try {
@@ -81,14 +78,15 @@ Future<void> main() async {
 
   await flutterLocalNotificationsPlugin.initialize(initSettings);
 
-  // ✅ Request notification permissions
+
+  // ✅ Request Firebase notification permissions
   await FirebaseMessaging.instance.requestPermission(
     alert: true,
     badge: true,
     sound: true,
   );
 
-  // ✅ Handle foreground notifications — shows popup even when app is open
+  // ✅ Handle foreground notifications
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     final notification = message.notification;
     final android      = message.notification?.android;
@@ -133,14 +131,11 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-
-      // ✅ Register controllers globally
       initialBinding: BindingsBuilder(() {
         Get.put(AuthController(), permanent: true);
         Get.put(SavedController(), permanent: true);
         Get.put(CartController(), permanent: true);
       }),
-
       getPages: AppRoutes.routes,
       home: const SplashScreen(),
     );
