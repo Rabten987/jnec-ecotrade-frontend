@@ -209,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.check_box_outlined, size: 26, color: Colors.black87),
-              title: const Text('My Booking', style: TextStyle(fontSize: 15, color: Colors.black87, fontWeight: FontWeight.w500)),
+              title: const Text('My Bid', style: TextStyle(fontSize: 15, color: Colors.black87, fontWeight: FontWeight.w500)),
               onTap: () { Get.back(); Get.to(() => const MyBookingScreen()); },
             ),
             ListTile(

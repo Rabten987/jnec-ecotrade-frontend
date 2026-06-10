@@ -237,7 +237,7 @@ class _BookingRequestsScreenState extends State<BookingRequestsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.teal.shade600,
         foregroundColor: Colors.white,
-        title: const Text('Booking Requests',
+        title: const Text('Bid Requests',
             style: TextStyle(fontWeight: FontWeight.bold)),
         leading: IconButton(
             icon: const Icon(Icons.arrow_back), onPressed: () => Get.back()),

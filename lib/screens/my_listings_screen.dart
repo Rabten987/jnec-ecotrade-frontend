@@ -39,7 +39,7 @@ class MyListingsScreen extends StatelessWidget {
             const SizedBox(height: 8),
             _menuItem(
               icon: Icons.description_outlined,
-              title: 'Booking Requests',
+              title: 'Bid Requests',
               onTap: () => Get.to(() => const BookingRequestsScreen()),
             ),
           ],

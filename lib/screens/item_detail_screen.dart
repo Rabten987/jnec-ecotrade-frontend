@@ -666,28 +666,21 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(child: _whatsAppButton(height: 44, fontSize: 12)),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Obx(() => SizedBox(
-                            height: 44,
-                            child: ElevatedButton.icon(
-                              onPressed: () => _cartController.addToCart(widget.item),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _cartController.isInCart(widget.item) ? Colors.grey.shade400 : Colors.teal.shade800,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                              ),
-                              icon: Icon(_cartController.isInCart(widget.item) ? Icons.shopping_cart : Icons.shopping_cart,
-                                  color: Colors.white, size: 16),
-                              label: Text(_cartController.isInCart(widget.item) ? 'In Wishlist' : 'Add to Wishlist',
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                            ),
-                          )),
+                    Obx(() => SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _cartController.addToCart(widget.item),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _cartController.isInCart(widget.item) ? Colors.grey.shade400 : Colors.teal.shade800,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                         ),
-                      ],
-                    ),
+                        icon: Icon(_cartController.isInCart(widget.item) ? Icons.shopping_cart : Icons.shopping_cart_outlined,
+                            color: Colors.white, size: 16),
+                        label: Text(_cartController.isInCart(widget.item) ? 'In Wishlist' : 'Add to Wishlist',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                      ),
+                    )),
                     const SizedBox(height: 8),
                     if (_isBooked.value)
                       SizedBox(
