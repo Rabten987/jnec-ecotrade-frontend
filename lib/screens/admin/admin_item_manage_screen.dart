@@ -24,14 +24,12 @@ class AdminItemManageScreen extends StatefulWidget {
       _AdminItemManageScreenState();
 }
 
-class _AdminItemManageScreenState
-    extends State<AdminItemManageScreen> {
+class _AdminItemManageScreenState extends State<AdminItemManageScreen> {
   late List<dynamic> _allItems;
   List<dynamic> _filteredItems = [];
   String _searchText     = '';
   String _selectedFilter = 'All';
 
-  // ✅ Added Auction tab
   final List<String> _filters = [
     'All', 'Available', 'Regular', 'Auction', 'Sold'
   ];
@@ -46,8 +44,8 @@ class _AdminItemManageScreenState
   void _applyFilter() {
     setState(() {
       _filteredItems = _allItems.where((item) {
-        final name   = (item['item_name'] ?? '').toString().toLowerCase();
-        final status = (item['status'] ?? 'available').toString().toLowerCase();
+        final name       = (item['item_name'] ?? '').toString().toLowerCase();
+        final status     = (item['status'] ?? 'available').toString().toLowerCase();
         final auctionVal = item['auction_enabled'];
         final isAuction  = auctionVal == true ||
             auctionVal == 1 ||
@@ -57,10 +55,10 @@ class _AdminItemManageScreenState
             name.contains(_searchText.toLowerCase());
 
         final matchFilter = _selectedFilter == 'All' ||
-          (_selectedFilter == 'Available' && status != 'sold') ||
-          (_selectedFilter == 'Regular'   && !isAuction && status != 'sold') ||
-          (_selectedFilter == 'Auction'   && isAuction  && status != 'sold') ||
-          (_selectedFilter == 'Sold'      && status == 'sold');
+            (_selectedFilter == 'Available' && status != 'sold') ||
+            (_selectedFilter == 'Regular'   && !isAuction && status != 'sold') ||
+            (_selectedFilter == 'Auction'   && isAuction  && status != 'sold') ||
+            (_selectedFilter == 'Sold'      && status == 'sold');
 
         return matchSearch && matchFilter;
       }).toList();
@@ -87,7 +85,8 @@ class _AdminItemManageScreenState
             onPressed: () => Get.back(result: true),
             style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8))),
             child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -148,7 +147,7 @@ class _AdminItemManageScreenState
       'kitchen_utensils', 'electronic', 'miscellaneous', 'others'
     ];
 
-    String _fmt(String s) =>
+    String fmt(String s) =>
         s[0].toUpperCase() + s.substring(1).replaceAll('_', ' ');
 
     final confirm = await Get.dialog<bool>(
@@ -168,8 +167,6 @@ class _AdminItemManageScreenState
             builder: (context, setStateDialog) => Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-
-                // ── Item Name ──
                 TextField(
                   controller: nameController,
                   decoration: const InputDecoration(
@@ -180,8 +177,6 @@ class _AdminItemManageScreenState
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // ── Price ──
                 TextField(
                   controller: priceController,
                   keyboardType: TextInputType.number,
@@ -193,8 +188,6 @@ class _AdminItemManageScreenState
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // ✅ Min bid price (auction only)
                 if (isAuction) ...[
                   TextField(
                     controller: minBidController,
@@ -210,8 +203,6 @@ class _AdminItemManageScreenState
                   ),
                   const SizedBox(height: 12),
                 ],
-
-                // ── Condition ──
                 DropdownButtonFormField<String>(
                   value: selectedCondition,
                   decoration: const InputDecoration(
@@ -219,14 +210,12 @@ class _AdminItemManageScreenState
                     labelStyle: TextStyle(color: Colors.black54),
                   ),
                   items: conditions
-                      .map((c) => DropdownMenuItem(value: c, child: Text(_fmt(c))))
+                      .map((c) => DropdownMenuItem(value: c, child: Text(fmt(c))))
                       .toList(),
                   onChanged: (val) =>
                       setStateDialog(() => selectedCondition = val!),
                 ),
                 const SizedBox(height: 12),
-
-                // ── Category ──
                 DropdownButtonFormField<String>(
                   value: selectedCategory,
                   decoration: const InputDecoration(
@@ -234,14 +223,12 @@ class _AdminItemManageScreenState
                     labelStyle: TextStyle(color: Colors.black54),
                   ),
                   items: categories
-                      .map((c) => DropdownMenuItem(value: c, child: Text(_fmt(c))))
+                      .map((c) => DropdownMenuItem(value: c, child: Text(fmt(c))))
                       .toList(),
                   onChanged: (val) =>
                       setStateDialog(() => selectedCategory = val!),
                 ),
                 const SizedBox(height: 12),
-
-                // ── Location ──
                 TextField(
                   controller: locationController,
                   decoration: const InputDecoration(
@@ -274,8 +261,8 @@ class _AdminItemManageScreenState
 
     if (confirm == true) {
       try {
-        final token  = await _getToken();
-        final body   = <String, dynamic>{
+        final token = await _getToken();
+        final body  = <String, dynamic>{
           'item_name': nameController.text,
           'price':     double.tryParse(priceController.text) ?? 0,
           'condition': selectedCondition,
@@ -344,13 +331,27 @@ class _AdminItemManageScreenState
     }
   }
 
-  String _statusLabel(String status) {
+  // ✅ booked → 'In Bidding' for auction, 'Enquiring' for regular
+  String _statusLabel(String status, bool isAuction) {
     switch (status) {
       case 'available': return 'Available';
-      case 'booked':    return 'Booked';
+      case 'booked':    return isAuction ? 'In Bidding' : 'Enquiring';
       case 'sold':      return 'Sold';
       default:          return status;
     }
+  }
+
+  String _timeLeft(String? endsAt) {
+    if (endsAt == null) return '';
+    try {
+      final end  = DateTime.parse(endsAt).toLocal();
+      final now  = DateTime.now();
+      if (now.isAfter(end)) return 'Ended';
+      final diff = end.difference(now);
+      if (diff.inDays > 0)  return '${diff.inDays}d left';
+      if (diff.inHours > 0) return '${diff.inHours}h left';
+      return '${diff.inMinutes}m left';
+    } catch (_) { return ''; }
   }
 
   @override
@@ -475,14 +476,13 @@ class _AdminItemManageScreenState
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     itemCount: _filteredItems.length,
                     itemBuilder: (context, index) {
-                      final item   = _filteredItems[index];
-                      final status = item['status'] ?? 'available';
+                      final item       = _filteredItems[index];
+                      final status     = item['status'] ?? 'available';
                       final auctionVal = item['auction_enabled'];
                       final isAuction  = auctionVal == true ||
                           auctionVal == 1 ||
                           auctionVal.toString() == 'true';
 
-                      // ✅ Use ImageHelper — handles both single base64 and JSON array
                       final Uint8List? imageBytes =
                           ImageHelper.getFirstImage(item['image']);
 
@@ -562,7 +562,7 @@ class _AdminItemManageScreenState
                                           fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 3),
 
-                                  // Status + auction time left
+                                  // ✅ Status badge with isAuction context
                                   Row(
                                     children: [
                                       Container(
@@ -570,24 +570,27 @@ class _AdminItemManageScreenState
                                             horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
                                             color: _statusBgColor(status),
-                                            borderRadius: BorderRadius.circular(10),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
                                             border: Border.all(
                                                 color: _statusColor(status)
                                                     .withOpacity(0.3))),
-                                        child: Text(_statusLabel(status),
-                                            style: TextStyle(
-                                                fontSize: 10,
-                                                color: _statusColor(status),
-                                                fontWeight: FontWeight.bold)),
+                                        child: Text(
+                                          _statusLabel(status, isAuction),
+                                          style: TextStyle(
+                                              fontSize: 10,
+                                              color: _statusColor(status),
+                                              fontWeight: FontWeight.bold)),
                                       ),
                                       if (isAuction &&
                                           item['auction_ends_at'] != null) ...[
                                         const SizedBox(width: 6),
-                                        Text(_timeLeft(item['auction_ends_at']),
-                                            style: TextStyle(
-                                                fontSize: 10,
-                                                color: Colors.orange.shade700,
-                                                fontWeight: FontWeight.w500)),
+                                        Text(
+                                          _timeLeft(item['auction_ends_at']),
+                                          style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.orange.shade700,
+                                              fontWeight: FontWeight.w500)),
                                       ],
                                     ],
                                   ),
@@ -600,10 +603,11 @@ class _AdminItemManageScreenState
                                             color: Colors.grey.shade500)),
                                   if (isAuction &&
                                       item['min_bid_price'] != null)
-                                    Text('Min bid: Nu.${item['min_bid_price']}',
-                                        style: TextStyle(
-                                            fontSize: 10,
-                                            color: Colors.grey.shade500)),
+                                    Text(
+                                      'Min bid: Nu.${item['min_bid_price']}',
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey.shade500)),
                                 ],
                               ),
                             ),
@@ -619,8 +623,8 @@ class _AdminItemManageScreenState
                                 IconButton(
                                   icon: const Icon(Icons.delete_outline,
                                       color: Colors.red, size: 22),
-                                  onPressed: () =>
-                                      _deleteItem(item['id'], item['item_name']),
+                                  onPressed: () => _deleteItem(
+                                      item['id'], item['item_name']),
                                 ),
                               ],
                             ),
@@ -633,18 +637,5 @@ class _AdminItemManageScreenState
         ],
       ),
     );
-  }
-
-  String _timeLeft(String? endsAt) {
-    if (endsAt == null) return '';
-    try {
-      final end  = DateTime.parse(endsAt).toLocal();
-      final now  = DateTime.now();
-      if (now.isAfter(end)) return 'Ended';
-      final diff = end.difference(now);
-      if (diff.inDays > 0)  return '${diff.inDays}d left';
-      if (diff.inHours > 0) return '${diff.inHours}h left';
-      return '${diff.inMinutes}m left';
-    } catch (_) { return ''; }
   }
 }
