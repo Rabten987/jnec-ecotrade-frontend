@@ -38,9 +38,9 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
        // ✅ iOS uses clientId, Android uses serverClientId only
       final GoogleSignIn googleSignIn = GoogleSignIn(
-        serverClientId: '938854441807-dev6j3opfh6pqnvvtio5dh7usvm4pf1o.apps.googleusercontent.com',
+        serverClientId: '451160567687-4rmhro65d84675upeih8ah4ah69sl36d.apps.googleusercontent.com',
         clientId: Platform.isIOS
-            ? '938854441807-r4l3rg838qkshq99h5bpvj656mr2udhs.apps.googleusercontent.com'
+            ? '451160567687-1vrn1hrr8mr6molg4gqlsl4o1f64o4bu.apps.googleusercontent.com'
             : null,
       );
 

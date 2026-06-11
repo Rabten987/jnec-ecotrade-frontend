@@ -144,8 +144,16 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
     }
   }
 
-  bool _isAuction(dynamic item) {
-    final val = item['auction_enabled'];
+  bool _isAuction(dynamic booking) {
+    // ✅ Check is_auction field first (reliable even after auction auto-closes)
+    final isAuctionField = booking['is_auction'];
+    if (isAuctionField != null) {
+      return isAuctionField == true || isAuctionField == 1 ||
+          isAuctionField.toString() == 'true';
+    }
+    // fallback: check item auction_enabled
+    final item = booking['item'] ?? {};
+    final val  = item['auction_enabled'];
     return val == true || val == 1 || val.toString() == 'true';
   }
 
@@ -216,7 +224,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                       final booking   = _bookings[index];
                       final item      = booking['item'] ?? {};
                       final status    = booking['status'] ?? 'pending';
-                      final isAuction = _isAuction(item);
+                      final isAuction = _isAuction(booking);
                       final bidPrice  = double.tryParse(
                               booking['bid_price']?.toString() ?? '0') ?? 0.0;
                       final isWinner  = isAuction && status == 'confirmed';

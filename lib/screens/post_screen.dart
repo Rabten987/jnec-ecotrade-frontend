@@ -30,14 +30,13 @@ class _PostScreenState extends State<PostScreen> {
   String? _selectedCategory;
   bool    _isLoading         = false;
   bool    _categoriesLoading = true;
-  bool    _auctionEnabled    = false;
 
   // ✅ Multiple images — max 4
   final List<Uint8List> _imageBytesList  = [];
   final List<String>    _imageBase64List = [];
   static const int      _maxImages       = 4;
 
-  List<String> _categories = [];
+  List<String>       _categories = [];
   final List<String> _conditions = ['new', 'used', 'like_new'];
 
   @override
@@ -62,15 +61,11 @@ class _PostScreenState extends State<PostScreen> {
     try {
       final authController = Get.find<AuthController>();
       final phone = authController.userPhone.value;
-      if (phone.isNotEmpty) {
-        setState(() => _contactController.text = phone);
-      }
+      if (phone.isNotEmpty) setState(() => _contactController.text = phone);
     } catch (_) {
       final prefs = await SharedPreferences.getInstance();
       final phone = prefs.getString('user_phone') ?? '';
-      if (phone.isNotEmpty) {
-        setState(() => _contactController.text = phone);
-      }
+      if (phone.isNotEmpty) setState(() => _contactController.text = phone);
     }
   }
 
@@ -102,7 +97,7 @@ class _PostScreenState extends State<PostScreen> {
 
   void _useFallbackCategories() {
     setState(() {
-      _categories = ['stationary','clothing','furniture','kitchen_utensils','electronic','miscellaneous','others'];
+      _categories       = ['stationary', 'clothing', 'furniture', 'kitchen_utensils', 'electronic', 'miscellaneous', 'others'];
       _selectedCategory ??= _categories.first;
     });
   }
@@ -138,15 +133,13 @@ class _PostScreenState extends State<PostScreen> {
   Future<void> _pickImage(ImageSource source) async {
     if (_imageBytesList.length >= _maxImages) {
       Get.snackbar('Limit Reached', 'Maximum $_maxImages photos allowed.',
-          backgroundColor: Colors.orange,
-          colorText: Colors.white,
+          backgroundColor: Colors.orange, colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM);
       return;
     }
     try {
       final picker = ImagePicker();
-      final picked = await picker.pickImage(
-          source: source, maxWidth: 800, imageQuality: 70);
+      final picked = await picker.pickImage(source: source, maxWidth: 800, imageQuality: 70);
       if (picked != null) {
         final bytes = await picked.readAsBytes();
         setState(() {
@@ -156,8 +149,7 @@ class _PostScreenState extends State<PostScreen> {
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to pick image: $e',
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
+          backgroundColor: Colors.red, colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM);
     }
   }
@@ -165,8 +157,7 @@ class _PostScreenState extends State<PostScreen> {
   void _showImagePicker() {
     if (_imageBytesList.length >= _maxImages) {
       Get.snackbar('Limit Reached', 'Maximum $_maxImages photos allowed.',
-          backgroundColor: Colors.orange,
-          colorText: Colors.white,
+          backgroundColor: Colors.orange, colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM);
       return;
     }
@@ -175,28 +166,24 @@ class _PostScreenState extends State<PostScreen> {
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                'Add Photo (${_imageBytesList.length}/$_maxImages)',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-              ),
-            ),
-            ListTile(
-              leading: Icon(Icons.photo_library, color: Colors.teal.shade600),
-              title: const Text('Choose from Gallery'),
-              onTap: () { Get.back(); _pickImage(ImageSource.gallery); },
-            ),
-            ListTile(
-              leading: Icon(Icons.camera_alt, color: Colors.teal.shade600),
-              title: const Text('Take a Photo'),
-              onTap: () { Get.back(); _pickImage(ImageSource.camera); },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
+        child: Wrap(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text('Add Photo (${_imageBytesList.length}/$_maxImages)',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+          ),
+          ListTile(
+            leading: Icon(Icons.photo_library, color: Colors.teal.shade600),
+            title: const Text('Choose from Gallery'),
+            onTap: () { Get.back(); _pickImage(ImageSource.gallery); },
+          ),
+          ListTile(
+            leading: Icon(Icons.camera_alt, color: Colors.teal.shade600),
+            title: const Text('Take a Photo'),
+            onTap: () { Get.back(); _pickImage(ImageSource.camera); },
+          ),
+          const SizedBox(height: 8),
+        ]),
       ),
     );
   }
@@ -210,29 +197,41 @@ class _PostScreenState extends State<PostScreen> {
 
   Future<void> _postItem() async {
     if (_itemNameController.text.isEmpty) {
-      Get.snackbar('Error', 'Please fill item name!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please fill item name!',
+          backgroundColor: Colors.orange, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM); return;
     }
     if (_priceController.text.isEmpty) {
-      Get.snackbar('Error', 'Please fill price!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please fill price!',
+          backgroundColor: Colors.orange, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM); return;
     }
     if (_contactController.text.isEmpty) {
-      Get.snackbar('Error', 'Please fill contact number!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please fill contact number!',
+          backgroundColor: Colors.orange, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM); return;
     }
     if (!_isValidBhutanPhone(_contactController.text)) {
-      Get.snackbar('Invalid Phone Number', 'Enter a valid Bhutan number:\n- BMobile: 17xxxxxx or 77xxxxxx\n- TCell: 16xxxxxx or 8xxxxxxx',
-          backgroundColor: Colors.red, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4)); return;
+      Get.snackbar('Invalid Phone Number',
+          'Enter a valid Bhutan number:\n- BMobile: 17xxxxxx or 77xxxxxx\n- TCell: 16xxxxxx or 8xxxxxxx',
+          backgroundColor: Colors.red, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 4)); return;
     }
     if (_selectedCategory == null) {
-      Get.snackbar('Error', 'Please select a category!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
+      Get.snackbar('Error', 'Please select a category!',
+          backgroundColor: Colors.orange, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM); return;
     }
-    if (_auctionEnabled && _minBidController.text.isEmpty) {
-      Get.snackbar('Error', 'Please set a minimum bid price!', backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM); return;
+    if (_minBidController.text.isEmpty) {
+      Get.snackbar('Error', 'Please set a minimum bid price!',
+          backgroundColor: Colors.orange, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM); return;
     }
-    if (_auctionEnabled && _auctionDaysController.text.isEmpty) {
+    if (_auctionDaysController.text.isEmpty) {
       Get.snackbar('Error', 'Please select an auction end date!',
           backgroundColor: Colors.orange, colorText: Colors.white,
-          snackPosition: SnackPosition.BOTTOM);
-      return;
+          snackPosition: SnackPosition.BOTTOM); return;
     }
 
     setState(() => _isLoading = true);
@@ -247,7 +246,9 @@ class _PostScreenState extends State<PostScreen> {
         'price':              double.parse(_priceController.text),
         'location':           _locationController.text,
         'contact_preference': _contactController.text,
-        'auction_enabled':    _auctionEnabled,
+        'auction_enabled':    true,  // ✅ always auction
+        'min_bid_price':      double.parse(_minBidController.text),
+        'auction_duration':   int.parse(_auctionDaysController.text),
       };
 
       // ✅ Send images as JSON array for multiple, single string for one
@@ -257,14 +258,13 @@ class _PostScreenState extends State<PostScreen> {
         body['image'] = jsonEncode(_imageBase64List);
       }
 
-      if (_auctionEnabled) {
-        body['min_bid_price']    = double.parse(_minBidController.text);
-        body['auction_duration'] = int.parse(_auctionDaysController.text);
-      }
-
       final response = await http.post(
         Uri.parse(Constants.productsUrl),
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer $token'},
+        headers: {
+          'Content-Type':  'application/json',
+          'Accept':        'application/json',
+          'Authorization': 'Bearer $token',
+        },
         body: jsonEncode(body),
       );
 
@@ -285,20 +285,23 @@ class _PostScreenState extends State<PostScreen> {
               children: [
                 Icon(Icons.check_circle, color: Colors.teal.shade600, size: 60),
                 const SizedBox(height: 16),
-                const Text('Item Posted!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const Text('Item Posted!',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                Text(
-                  _auctionEnabled ? 'Your item is listed for auction!\nBidding starts now.' : 'Your item has been posted successfully.',
+                const Text(
+                  'Your item is listed for auction!\nBidding starts now.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.black54),
+                  style: TextStyle(color: Colors.black54),
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () { Get.back(); Get.back(); },
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.teal.shade600,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal.shade600,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30))),
                     child: const Text('OK', style: TextStyle(color: Colors.white)),
                   ),
                 ),
@@ -309,11 +312,13 @@ class _PostScreenState extends State<PostScreen> {
         );
       } else {
         Get.snackbar('Error', data['message'] ?? 'Failed to post item',
-            backgroundColor: Colors.red, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
+            backgroundColor: Colors.red, colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM);
       }
     } catch (e) {
       Get.snackbar('Error', 'Connection error: $e',
-          backgroundColor: Colors.red, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
+          backgroundColor: Colors.red, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -328,10 +333,12 @@ class _PostScreenState extends State<PostScreen> {
       appBar: AppBar(
         backgroundColor: Colors.teal.shade600,
         foregroundColor: Colors.white,
-        title: const Text('List an item'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Get.back()),
+        title: const Text('List an Item for Auction'),
+        leading: IconButton(
+            icon: const Icon(Icons.arrow_back), onPressed: () => Get.back()),
         actions: [
-          IconButton(icon: const Icon(Icons.notifications_outlined),
+          IconButton(
+              icon: const Icon(Icons.notifications_outlined),
               onPressed: () => Get.to(() => const NotificationsScreen())),
         ],
       ),
@@ -341,24 +348,53 @@ class _PostScreenState extends State<PostScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
+            // ── Auction banner ──
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.teal.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.teal.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.gavel, color: Colors.teal.shade600, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'All items are listed as auctions. Buyers bid and the highest bidder wins.',
+                      style: TextStyle(fontSize: 12, color: Colors.teal.shade700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
             // ── Photos Section ──
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Photos (${_imageBytesList.length}/$_maxImages)',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Colors.black87)),
                 if (_imageBytesList.length < _maxImages)
                   TextButton.icon(
                     onPressed: _showImagePicker,
-                    icon: Icon(Icons.add_photo_alternate, color: Colors.teal.shade600, size: 18),
-                    label: Text('Add Photo', style: TextStyle(color: Colors.teal.shade600, fontSize: 13)),
+                    icon: Icon(Icons.add_photo_alternate,
+                        color: Colors.teal.shade600, size: 18),
+                    label: Text('Add Photo',
+                        style: TextStyle(color: Colors.teal.shade600, fontSize: 13)),
                   ),
               ],
             ),
 
             const SizedBox(height: 8),
 
-            // ✅ Empty state
             if (_imageBytesList.isEmpty)
               GestureDetector(
                 onTap: _showImagePicker,
@@ -372,11 +408,15 @@ class _PostScreenState extends State<PostScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.add_photo_alternate_outlined, size: 40, color: Colors.grey.shade400),
+                      Icon(Icons.add_photo_alternate_outlined,
+                          size: 40, color: Colors.grey.shade400),
                       const SizedBox(height: 8),
-                      const Text('Tap to add photos', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
+                      const Text('Tap to add photos',
+                          style: TextStyle(
+                              color: Colors.black54, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      Text('Up to $_maxImages photos', style: const TextStyle(color: Colors.black38, fontSize: 12)),
+                      Text('Up to $_maxImages photos',
+                          style: const TextStyle(color: Colors.black38, fontSize: 12)),
                     ],
                   ),
                 ),
@@ -386,9 +426,9 @@ class _PostScreenState extends State<PostScreen> {
                 height: 110,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  itemCount: _imageBytesList.length + (_imageBytesList.length < _maxImages ? 1 : 0),
+                  itemCount: _imageBytesList.length +
+                      (_imageBytesList.length < _maxImages ? 1 : 0),
                   itemBuilder: (context, index) {
-                    // ✅ Add button at end
                     if (index == _imageBytesList.length) {
                       return GestureDetector(
                         onTap: _showImagePicker,
@@ -396,7 +436,8 @@ class _PostScreenState extends State<PostScreen> {
                           width: 100,
                           margin: const EdgeInsets.only(right: 8),
                           decoration: BoxDecoration(
-                            border: Border.all(color: Colors.teal.shade300, width: 1.5),
+                            border: Border.all(
+                                color: Colors.teal.shade300, width: 1.5),
                             borderRadius: BorderRadius.circular(8),
                             color: Colors.teal.shade50,
                           ),
@@ -405,14 +446,14 @@ class _PostScreenState extends State<PostScreen> {
                             children: [
                               Icon(Icons.add, color: Colors.teal.shade600, size: 28),
                               const SizedBox(height: 4),
-                              Text('Add', style: TextStyle(color: Colors.teal.shade600, fontSize: 12)),
+                              Text('Add',
+                                  style: TextStyle(
+                                      color: Colors.teal.shade600, fontSize: 12)),
                             ],
                           ),
                         ),
                       );
                     }
-
-                    // ✅ Image thumbnail
                     return Stack(
                       children: [
                         Container(
@@ -420,14 +461,17 @@ class _PostScreenState extends State<PostScreen> {
                           margin: const EdgeInsets.only(right: 8),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: index == 0 ? Colors.teal.shade400 : Colors.grey.shade300),
+                            border: Border.all(
+                                color: index == 0
+                                    ? Colors.teal.shade400
+                                    : Colors.grey.shade300),
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.memory(_imageBytesList[index], fit: BoxFit.cover),
+                            child: Image.memory(_imageBytesList[index],
+                                fit: BoxFit.cover),
                           ),
                         ),
-                        // ✅ Main badge
                         if (index == 0)
                           Positioned(
                             bottom: 0, left: 0, right: 8,
@@ -436,21 +480,27 @@ class _PostScreenState extends State<PostScreen> {
                               decoration: BoxDecoration(
                                 color: Colors.teal.shade600.withOpacity(0.85),
                                 borderRadius: const BorderRadius.only(
-                                    bottomLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
+                                    bottomLeft: Radius.circular(8),
+                                    bottomRight: Radius.circular(8)),
                               ),
-                              child: const Text('Main', textAlign: TextAlign.center,
-                                  style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                              child: const Text('Main',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold)),
                             ),
                           ),
-                        // ✅ Remove button
                         Positioned(
                           top: 0, right: 8,
                           child: GestureDetector(
                             onTap: () => _removeImage(index),
                             child: Container(
                               padding: const EdgeInsets.all(3),
-                              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                              child: const Icon(Icons.close, color: Colors.white, size: 14),
+                              decoration: const BoxDecoration(
+                                  color: Colors.red, shape: BoxShape.circle),
+                              child: const Icon(Icons.close,
+                                  color: Colors.white, size: 14),
                             ),
                           ),
                         ),
@@ -463,7 +513,8 @@ class _PostScreenState extends State<PostScreen> {
             if (_imageBytesList.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text('First photo is the main display image. Tap x to remove.',
+                child: Text(
+                    'First photo is the main display image. Tap x to remove.',
                     style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
               ),
 
@@ -473,9 +524,12 @@ class _PostScreenState extends State<PostScreen> {
             TextField(
               controller: _itemNameController,
               decoration: const InputDecoration(
-                labelText: 'Item name', labelStyle: TextStyle(color: Colors.black54),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
-                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
+                labelText: 'Item Name',
+                labelStyle: TextStyle(color: Colors.black54),
+                enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.black26)),
+                focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.teal)),
               ),
             ),
 
@@ -485,11 +539,17 @@ class _PostScreenState extends State<PostScreen> {
             DropdownButtonFormField<String>(
               value: _selectedCondition,
               decoration: const InputDecoration(
-                labelText: 'Condition', labelStyle: TextStyle(color: Colors.black54),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
-                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
+                labelText: 'Condition',
+                labelStyle: TextStyle(color: Colors.black54),
+                enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.black26)),
+                focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.teal)),
               ),
-              items: _conditions.map((c) => DropdownMenuItem(value: c, child: Text(_formatLabel(c)))).toList(),
+              items: _conditions
+                  .map((c) =>
+                      DropdownMenuItem(value: c, child: Text(_formatLabel(c))))
+                  .toList(),
               onChanged: (val) => setState(() => _selectedCondition = val!),
             ),
 
@@ -500,18 +560,30 @@ class _PostScreenState extends State<PostScreen> {
                 ? const Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Row(children: [
-                      SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.teal)),
+                      SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.teal)),
                       SizedBox(width: 10),
-                      Text('Loading categories...', style: TextStyle(color: Colors.black45, fontSize: 13)),
+                      Text('Loading categories...',
+                          style:
+                              TextStyle(color: Colors.black45, fontSize: 13)),
                     ]))
                 : DropdownButtonFormField<String>(
                     value: _selectedCategory,
                     decoration: const InputDecoration(
-                      labelText: 'Category', labelStyle: TextStyle(color: Colors.black54),
-                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
-                      focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
+                      labelText: 'Category',
+                      labelStyle: TextStyle(color: Colors.black54),
+                      enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.black26)),
+                      focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.teal)),
                     ),
-                    items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(_formatLabel(c)))).toList(),
+                    items: _categories
+                        .map((c) => DropdownMenuItem(
+                            value: c, child: Text(_formatLabel(c))))
+                        .toList(),
                     onChanged: (val) => setState(() => _selectedCategory = val),
                   ),
 
@@ -522,9 +594,12 @@ class _PostScreenState extends State<PostScreen> {
               controller: _priceController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'Price (Nu)', labelStyle: TextStyle(color: Colors.black54),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
-                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
+                labelText: 'Starting Price (Nu)',
+                labelStyle: TextStyle(color: Colors.black54),
+                enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.black26)),
+                focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.teal)),
               ),
             ),
 
@@ -534,9 +609,12 @@ class _PostScreenState extends State<PostScreen> {
             TextField(
               controller: _locationController,
               decoration: const InputDecoration(
-                labelText: 'Location', labelStyle: TextStyle(color: Colors.black54),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
-                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
+                labelText: 'Location',
+                labelStyle: TextStyle(color: Colors.black54),
+                enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.black26)),
+                focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.teal)),
               ),
             ),
 
@@ -550,168 +628,212 @@ class _PostScreenState extends State<PostScreen> {
               maxLength: 8,
               onChanged: (val) => setState(() {}),
               decoration: InputDecoration(
-                labelText: 'Contact Number', labelStyle: const TextStyle(color: Colors.black54),
-                hintText: 'e.g. 77123456', hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
+                labelText: 'Contact Number',
+                labelStyle: const TextStyle(color: Colors.black54),
+                hintText: 'e.g. 77123456',
+                hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
                 counterText: '${phone.length}/8',
-                counterStyle: TextStyle(fontSize: 11, color: phone.length == 8 ? Colors.black54 : Colors.black38),
+                counterStyle: TextStyle(
+                    fontSize: 11,
+                    color: phone.length == 8 ? Colors.black54 : Colors.black38),
                 helperText: _phoneHelperText(phone),
-                helperStyle: TextStyle(fontSize: 11, color: _phoneHelperColor(phone)),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: _phoneBorderColor(phone))),
-                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: _phoneBorderColor(phone))),
+                helperStyle:
+                    TextStyle(fontSize: 11, color: _phoneHelperColor(phone)),
+                enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: _phoneBorderColor(phone))),
+                focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: _phoneBorderColor(phone))),
                 suffixIcon: phone.length == 8
-                    ? Icon(_isValidBhutanPhone(phone) ? Icons.check_circle : Icons.cancel,
-                        color: _isValidBhutanPhone(phone) ? Colors.green : Colors.red, size: 20)
+                    ? Icon(
+                        _isValidBhutanPhone(phone)
+                            ? Icons.check_circle
+                            : Icons.cancel,
+                        color: _isValidBhutanPhone(phone)
+                            ? Colors.green
+                            : Colors.red,
+                        size: 20)
                     : null,
               ),
             ),
 
             const SizedBox(height: 24),
 
-            // ── Auction Toggle ──
+            // ── Auction Fields (always visible) ──
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _auctionEnabled ? Colors.teal.shade50 : Colors.grey.shade50,
+                color: Colors.teal.shade50,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _auctionEnabled ? Colors.teal.shade300 : Colors.grey.shade300),
+                border: Border.all(color: Colors.teal.shade300),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+
+                  // Section header
                   Row(
                     children: [
-                      Icon(Icons.gavel, color: _auctionEnabled ? Colors.teal.shade600 : Colors.grey, size: 22),
-                      const SizedBox(width: 10),
-                      const Expanded(
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('Enable Auction', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                          Text('Buyers bid on your item. Highest bid wins when auction ends.',
-                              style: TextStyle(fontSize: 11, color: Colors.black45)),
-                        ]),
-                      ),
-                      Switch(value: _auctionEnabled, activeColor: Colors.teal.shade600,
-                          onChanged: (val) => setState(() => _auctionEnabled = val)),
+                      Icon(Icons.gavel, color: Colors.teal.shade600, size: 20),
+                      const SizedBox(width: 8),
+                      Text('Auction Settings',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: Colors.teal.shade700)),
                     ],
                   ),
-                  if (_auctionEnabled) ...[
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _minBidController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Minimum Bid Price (Nu)', labelStyle: TextStyle(color: Colors.teal.shade700),
-                        hintText: 'e.g. 100', hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
-                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal.shade300)),
-                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal.shade600)),
-                        prefixIcon: Icon(Icons.currency_rupee, color: Colors.teal.shade600, size: 18),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
 
-                    // ✅ Auction end date — calendar picker
-                    GestureDetector(
-                      onTap: () async {
-                        final now      = DateTime.now();
-                        final maxDate  = now.add(const Duration(days: 30));
-                        final picked   = await showDatePicker(
-                          context: context,
-                          initialDate: now.add(const Duration(days: 3)),
-                          firstDate: now.add(const Duration(days: 1)),
-                          lastDate: maxDate,
-                          helpText: 'Select Auction End Date',
-                          builder: (context, child) => Theme(
-                            data: Theme.of(context).copyWith(
-                              colorScheme: ColorScheme.light(
-                                primary: Colors.teal.shade600,
-                                onPrimary: Colors.white,
-                                surface: Colors.white,
-                                onSurface: Colors.black87,
-                              ),
+                  const SizedBox(height: 16),
+
+                  // ── Minimum Bid Price ──
+                  TextField(
+                    controller: _minBidController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Minimum Bid Price (Nu)',
+                      labelStyle: TextStyle(color: Colors.teal.shade700),
+                      hintText: 'e.g. 100',
+                      hintStyle:
+                          const TextStyle(color: Colors.black38, fontSize: 12),
+                      enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.teal.shade300)),
+                      focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.teal.shade600)),
+                      prefixIcon: Icon(Icons.currency_rupee,
+                          color: Colors.teal.shade600, size: 18),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // ── Auction End Date ──
+                  GestureDetector(
+                    onTap: () async {
+                      final now     = DateTime.now();
+                      final maxDate = now.add(const Duration(days: 30));
+                      final picked  = await showDatePicker(
+                        context: context,
+                        initialDate: now.add(const Duration(days: 3)),
+                        firstDate: now.add(const Duration(days: 1)),
+                        lastDate: maxDate,
+                        helpText: 'Select Auction End Date',
+                        builder: (context, child) => Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: ColorScheme.light(
+                              primary: Colors.teal.shade600,
+                              onPrimary: Colors.white,
+                              surface: Colors.white,
+                              onSurface: Colors.black87,
                             ),
-                            child: child!,
                           ),
-                        );
-                        if (picked != null) {
-                          final days = picked.difference(DateTime(now.year, now.month, now.day)).inDays;
-                          setState(() => _auctionDaysController.text = days.toString());
-                        }
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: Colors.teal.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.teal.shade300),
+                          child: child!,
                         ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.calendar_today, color: Colors.teal.shade600, size: 20),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Auction End Date',
-                                      style: TextStyle(fontSize: 12, color: Colors.teal.shade600,
-                                          fontWeight: FontWeight.w500)),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    _auctionDaysController.text.isEmpty
-                                        ? 'Tap to select end date'
-                                        : () {
-                                            final days = int.tryParse(_auctionDaysController.text) ?? 3;
-                                            final endDate = DateTime.now().add(Duration(days: days));
-                                            return '${endDate.day.toString().padLeft(2,'0')}/'
-                                                '${endDate.month.toString().padLeft(2,'0')}/'
-                                                '${endDate.year}  ($days days)';
-                                          }(),
+                      );
+                      if (picked != null) {
+                        final days = picked
+                            .difference(DateTime(now.year, now.month, now.day))
+                            .inDays;
+                        setState(() => _auctionDaysController.text = days.toString());
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.teal.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_today,
+                              color: Colors.teal.shade600, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Auction End Date',
                                     style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: _auctionDaysController.text.isEmpty
-                                          ? Colors.black38
-                                          : Colors.teal.shade700,
-                                    ),
+                                        fontSize: 12,
+                                        color: Colors.teal.shade600,
+                                        fontWeight: FontWeight.w500)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _auctionDaysController.text.isEmpty
+                                      ? 'Tap to select end date'
+                                      : () {
+                                          final days = int.tryParse(
+                                                  _auctionDaysController.text) ??
+                                              3;
+                                          final endDate = DateTime.now()
+                                              .add(Duration(days: days));
+                                          return '${endDate.day.toString().padLeft(2, '0')}/'
+                                              '${endDate.month.toString().padLeft(2, '0')}/'
+                                              '${endDate.year}  ($days days)';
+                                        }(),
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: _auctionDaysController.text.isEmpty
+                                        ? Colors.black38
+                                        : Colors.teal.shade700,
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                            Icon(Icons.arrow_drop_down, color: Colors.teal.shade600),
-                          ],
-                        ),
+                          ),
+                          Icon(Icons.arrow_drop_down,
+                              color: Colors.teal.shade600),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: Colors.teal.shade100, borderRadius: BorderRadius.circular(8)),
-                      child: Row(children: [
-                        Icon(Icons.info_outline, size: 14, color: Colors.teal.shade700),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text('Auction closes after the set number of days. Winner is the highest bidder.',
-                            style: TextStyle(fontSize: 11, color: Colors.teal.shade700))),
-                      ]),
-                    ),
-                  ],
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Info note
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                        color: Colors.teal.shade100,
+                        borderRadius: BorderRadius.circular(8)),
+                    child: Row(children: [
+                      Icon(Icons.info_outline,
+                          size: 14, color: Colors.teal.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Auction closes on the selected date. The highest bidder wins automatically.',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.teal.shade700)),
+                      ),
+                    ]),
+                  ),
                 ],
               ),
             ),
 
             const SizedBox(height: 32),
 
+            // ── Post Button ──
             SizedBox(
               width: double.infinity, height: 50,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _postItem,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.teal.shade600,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30)),
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(_auctionEnabled ? 'Post for Auction' : 'Post Item',
-                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    : const Text('Post for Auction',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold)),
               ),
             ),
 

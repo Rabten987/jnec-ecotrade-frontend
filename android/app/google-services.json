@@ -37,6 +37,13 @@
             {
               "client_id": "451160567687-4rmhro65d84675upeih8ah4ah69sl36d.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "451160567687-1vrn1hrr8mr6molg4gqlsl4o1f64o4bu.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.rabten.jnececotrade"
+              }
             }
           ]
         }
