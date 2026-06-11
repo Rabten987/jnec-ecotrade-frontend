@@ -31,7 +31,7 @@ class _AdminItemManageScreenState extends State<AdminItemManageScreen> {
   String _selectedFilter = 'All';
 
   final List<String> _filters = [
-    'All', 'Available', 'Regular', 'Auction', 'Sold'
+    'All', 'Auction', 'Sold'
   ];
 
   @override
@@ -55,10 +55,8 @@ class _AdminItemManageScreenState extends State<AdminItemManageScreen> {
             name.contains(_searchText.toLowerCase());
 
         final matchFilter = _selectedFilter == 'All' ||
-            (_selectedFilter == 'Available' && status != 'sold') ||
-            (_selectedFilter == 'Regular'   && !isAuction && status != 'sold') ||
-            (_selectedFilter == 'Auction'   && isAuction  && status != 'sold') ||
-            (_selectedFilter == 'Sold'      && status == 'sold');
+          (_selectedFilter == 'Auction' && isAuction && status != 'sold') ||
+          (_selectedFilter == 'Sold'    && status == 'sold');
 
         return matchSearch && matchFilter;
       }).toList();
