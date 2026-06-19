@@ -8,16 +8,22 @@ import '../utils/constants.dart';
 import '../utils/image_helper.dart';
 import 'edit_item_screen.dart';
 import 'notifications_screen.dart';
-import 'app_bottom_nav.dart';
 
-class MyListingItemsScreen extends StatefulWidget {
-  const MyListingItemsScreen({super.key});
+/// ✅ Tab content for "My Listings" — used inside MainNavScreen's PageView.
+/// Has its own AppBar (Scaffold's appBar lives in MainNavScreen, this is
+/// rendered as the page content with its own internal AppBar-like header).
+class MyListingItemsTab extends StatefulWidget {
+  const MyListingItemsTab({super.key});
 
   @override
-  State<MyListingItemsScreen> createState() => _MyListingItemsScreenState();
+  State<MyListingItemsTab> createState() => MyListingItemsTabState();
 }
 
-class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
+class MyListingItemsTabState extends State<MyListingItemsTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true; // ✅ Preserve state when swiped away from
+
   List<dynamic> _myItems = [];
   bool _isLoading        = false;
 
@@ -131,6 +137,7 @@ class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // required by AutomaticKeepAliveClientMixin
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
@@ -147,37 +154,33 @@ class _MyListingItemsScreenState extends State<MyListingItemsScreen> {
           ),
         ],
       ),
-      body: SwipeNavWrapper(
-        currentIndex: 1,
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: Colors.teal))
-            : _myItems.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.inbox_outlined,
-                            size: 60, color: Colors.grey.shade300),
-                        const SizedBox(height: 12),
-                        Text('No items posted yet',
-                            style: TextStyle(color: Colors.grey.shade400, fontSize: 16)),
-                        const SizedBox(height: 8),
-                        Text('Start posting items to sell!',
-                            style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
-                      ],
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _loadMyItems,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: _myItems.length,
-                      itemBuilder: (context, index) =>
-                          _buildItemCard(_myItems[index]),
-                    ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Colors.teal))
+          : _myItems.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.inbox_outlined,
+                          size: 60, color: Colors.grey.shade300),
+                      const SizedBox(height: 12),
+                      Text('No items posted yet',
+                          style: TextStyle(color: Colors.grey.shade400, fontSize: 16)),
+                      const SizedBox(height: 8),
+                      Text('Start posting items to sell!',
+                          style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                    ],
                   ),
-      ),
-      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadMyItems,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _myItems.length,
+                    itemBuilder: (context, index) =>
+                        _buildItemCard(_myItems[index]),
+                  ),
+                ),
     );
   }
 

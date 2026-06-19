@@ -10,16 +10,18 @@ import 'profile_screen.dart';
 import 'item_detail_screen.dart';
 import 'notifications_screen.dart';
 import 'saved_screen.dart';
-import 'app_bottom_nav.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+class HomeTab extends StatefulWidget {
+  const HomeTab({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeTab> createState() => HomeTabState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeTabState extends State<HomeTab> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   final _authController = Get.find<AuthController>();
   final _homeController = Get.put(HomeController());
 
@@ -243,13 +245,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: const Color(0xFFF5F5F5),
       drawer: _buildDrawer(),
-      body: SwipeNavWrapper(
-        currentIndex: 0,
-        child: SafeArea(
+      body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -452,9 +453,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      ),
-
-      bottomNavigationBar: const AppBottomNav(currentIndex: 0),
     );
   }
 

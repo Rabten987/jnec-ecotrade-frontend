@@ -7,18 +7,20 @@ import 'package:image_picker/image_picker.dart';
 import '../controllers/auth_controller.dart';
 import 'edit_profile_screen.dart';
 import 'edit_password_screen.dart';
-import 'app_bottom_nav.dart';
 
-class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+class ProfileTab extends StatefulWidget {
+  const ProfileTab({super.key});
 
   @override
-  State<ProfileScreen> createState() =>
-      _ProfileScreenState();
+  State<ProfileTab> createState() =>
+      ProfileTabState();
 }
 
-class _ProfileScreenState
-    extends State<ProfileScreen> {
+class ProfileTabState
+    extends State<ProfileTab> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   final _authController =
       Get.find<AuthController>();
 
@@ -353,6 +355,7 @@ class _ProfileScreenState
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -374,9 +377,7 @@ class _ProfileScreenState
           ),
         ],
       ),
-      body: SwipeNavWrapper(
-        currentIndex: 4,
-        child: SingleChildScrollView(
+      body: SingleChildScrollView(
         child: Column(
           children: [
             const SizedBox(height: 30),
@@ -589,10 +590,6 @@ class _ProfileScreenState
           ],
         ),
       ),
-      ),
-
-      // ✅ Shared bottom nav — same as Home, My Listings, Post, Offers
-      bottomNavigationBar: const AppBottomNav(currentIndex: 4),
     );
   }
 

@@ -1,18 +1,16 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
 import '../utils/image_helper.dart';
 import '../controllers/saved_controller.dart';
-import '../controllers/cart_controller.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/home_controller.dart';
 import 'auction_screen.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class ItemDetailScreen extends StatefulWidget {
   final dynamic item;
@@ -24,12 +22,10 @@ class ItemDetailScreen extends StatefulWidget {
 
 class _ItemDetailScreenState extends State<ItemDetailScreen> {
   final _savedController = Get.find<SavedController>();
-  final _cartController  = Get.find<CartController>();
   final _authController  = Get.find<AuthController>();
 
   final _isBooking = false.obs;
   final _isBooked  = false.obs;
-  int? _bookingId;
 
   // ✅ Image carousel state
   int _currentImageIndex = 0;
@@ -49,8 +45,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     super.initState();
     final auctionVal = widget.item['auction_enabled'];
     _isAuction = auctionVal == true || auctionVal == 1 || auctionVal.toString() == 'true';
+    _auctionEndsAt = widget.item['auction_ends_at'];
     _checkIfBooked();
     if (_isAuction) _loadBids();
+    // ✅ No longer using a page-wide Timer — countdown is isolated in _LiveCountdownText
   }
 
   @override
@@ -82,7 +80,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               booking['item']['id'] == widget.item['id'] &&
               booking['status'] == 'pending') {
             _isBooked.value = true;
-            _bookingId      = booking['id'];
             break;
           }
         }
@@ -104,7 +101,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           _bids          = data['bids'] ?? [];
           _myBid         = data['my_bid'];
           _highestBid    = data['highest_bid'];
-          _auctionEndsAt = data['auction_ends_at'];
+          _auctionEndsAt = data['auction_ends_at'] ?? _auctionEndsAt;
           _minBidPrice   = data['min_bid_price'] != null
               ? double.tryParse(data['min_bid_price'].toString())
               : null;
@@ -126,6 +123,34 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
       return;
     }
+
+    // ✅ Confirmation prompt before submitting the bid
+    final itemName = widget.item['item_name'] ?? 'this item';
+    final confirm = await Get.dialog<bool>(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(_myBid != null ? 'Update Bid' : 'Confirm Bid'),
+        content: Text(
+          'Place a bid of Nu. ${bidAmount.toStringAsFixed(0)} on "$itemName"?\n\n'
+          'This will ${_myBid != null ? 'replace your current bid' : 'be recorded'} and can be changed before the auction ends.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal.shade600,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
     setState(() => _isPlacingBid = true);
     try {
       final token  = await _getToken();
@@ -139,7 +164,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       if (response.statusCode == 201) {
         _bidController.clear();
         _isBooked.value = true;
-        _bookingId      = data['booking']?['id'];
         Get.snackbar('Bid Placed!', 'Your bid of Nu. $bidAmount was placed!',
             backgroundColor: Colors.teal.shade600, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
         _loadBids();
@@ -159,8 +183,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     final confirm = await Get.dialog<bool>(
       AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(_isAuction ? 'Cancel Bid' : 'Cancel Booking'),
-        content: Text(_isAuction ? 'Are you sure you want to cancel your bid?' : 'Are you sure you want to cancel this booking?'),
+        title: const Text('Cancel Bid'),
+        content: const Text('Are you sure you want to cancel your bid?'),
         actions: [
           TextButton(onPressed: () => Get.back(result: false), child: Text('No', style: TextStyle(color: Colors.grey.shade600))),
           ElevatedButton(
@@ -179,56 +203,25 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       final token  = await _getToken();
       final itemId = widget.item['id'];
 
-      if (_isAuction) {
-        final response = await http.delete(
-          Uri.parse('${Constants.baseUrl}/items/$itemId/bids'),
-          headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer $token'},
-        );
-        _isBooking.value = false;
-        if (response.statusCode == 200) {
-          _isBooked.value = false;
-          _bookingId      = null;
-          setState(() { _myBid = null; });
-          _loadBids();
-          Get.snackbar('Cancelled', 'Your bid has been cancelled!',
-              backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
-        } else {
-          final data = jsonDecode(response.body);
-          Get.snackbar('Error', data['message'] ?? 'Failed to cancel bid!',
-              backgroundColor: Colors.red, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
-        }
-      } else {
-        if (_bookingId == null) return;
-        await http.put(Uri.parse('${Constants.baseUrl}/bookings/$_bookingId/cancel'),
-            headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer $token'});
-        await http.delete(Uri.parse('${Constants.baseUrl}/bookings/$_bookingId/delete'),
-            headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer $token'});
-        _isBooking.value = false;
-        _isBooked.value  = false;
-        _bookingId       = null;
-        Get.snackbar('Cancelled', 'Booking cancelled successfully!',
+      final response = await http.delete(
+        Uri.parse('${Constants.baseUrl}/items/$itemId/bids'),
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer $token'},
+      );
+      _isBooking.value = false;
+      if (response.statusCode == 200) {
+        _isBooked.value = false;
+        setState(() { _myBid = null; });
+        _loadBids();
+        Get.snackbar('Cancelled', 'Your bid has been cancelled!',
             backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
+      } else {
+        final data = jsonDecode(response.body);
+        Get.snackbar('Error', data['message'] ?? 'Failed to cancel bid!',
+            backgroundColor: Colors.red, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
       }
     } catch (e) {
       _isBooking.value = false;
       Get.snackbar('Error', 'Connection error: $e', backgroundColor: Colors.red, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
-    }
-  }
-
-  Future<void> _sendMessage() async {
-    final contact = widget.item['contact_preference'] ?? '';
-    String phone  = contact.replaceAll(RegExp(r'[^\d]'), '');
-    if (!phone.startsWith('975')) phone = '975$phone';
-    final itemName = widget.item['item_name'] ?? 'item';
-    final price    = widget.item['price'] ?? '';
-    final message  = Uri.encodeComponent(
-        'Hi! I am interested in your "$itemName" listed for Nu. $price on JNEC Eco-trade. Is it still available?');
-    final whatsappUrl = 'https://wa.me/$phone?text=$message';
-    if (await canLaunchUrl(Uri.parse(whatsappUrl))) {
-      await launchUrl(Uri.parse(whatsappUrl), mode: LaunchMode.externalApplication);
-    } else {
-      Get.snackbar('Error', contact.isEmpty ? 'No contact number available!' : 'Could not open WhatsApp!',
-          backgroundColor: Colors.red, colorText: Colors.white, snackPosition: SnackPosition.BOTTOM);
     }
   }
 
@@ -243,17 +236,24 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     } catch (_) { return dateStr; }
   }
 
-  String _timeLeft() {
+  // ✅ Full end date + time, e.g. "24 Jun 2026, 3:45 PM"
+  String _fullEndDateTime() {
     if (_auctionEndsAt == null) return '';
     try {
       final endsAt = DateTime.parse(_auctionEndsAt!).toLocal();
-      final now    = DateTime.now();
-      if (now.isAfter(endsAt)) return 'Auction ended';
-      final diff = endsAt.difference(now);
-      if (diff.inDays > 0) return '${diff.inDays}d ${diff.inHours.remainder(24)}h left';
-      if (diff.inHours > 0) return '${diff.inHours}h ${diff.inMinutes.remainder(60)}m left';
-      return '${diff.inMinutes}m left';
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      final hour12 = endsAt.hour % 12 == 0 ? 12 : endsAt.hour % 12;
+      final ampm   = endsAt.hour >= 12 ? 'PM' : 'AM';
+      final minute = endsAt.minute.toString().padLeft(2, '0');
+      return '${endsAt.day} ${months[endsAt.month - 1]} ${endsAt.year}, $hour12:$minute $ampm';
     } catch (_) { return ''; }
+  }
+
+  bool _hasEnded() {
+    if (_auctionEndsAt == null) return false;
+    try {
+      return DateTime.now().isAfter(DateTime.parse(_auctionEndsAt!).toLocal());
+    } catch (_) { return false; }
   }
 
   Widget _infoRow(String label, String value) {
@@ -266,22 +266,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87))),
           Expanded(child: Text(value, style: TextStyle(fontSize: 14, color: Colors.grey.shade700))),
         ],
-      ),
-    );
-  }
-
-  Widget _whatsAppButton({double height = 48, double fontSize = 14}) {
-    return SizedBox(
-      height: height,
-      child: ElevatedButton.icon(
-        onPressed: _sendMessage,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF25D366),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        ),
-        icon: const FaIcon(FontAwesomeIcons.whatsapp, color: Colors.white, size: 18),
-        label: Text('Send Message',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: fontSize)),
       ),
     );
   }
@@ -302,7 +286,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       return Container(
         width: double.infinity, height: 280,
         color: Colors.grey.shade50,
-        child: Image.memory(images.first, fit: BoxFit.contain),
+        child: Image.memory(images.first, fit: BoxFit.contain, gaplessPlayback: true),
       );
     }
 
@@ -316,7 +300,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             onPageChanged: (index) => setState(() => _currentImageIndex = index),
             itemBuilder: (context, index) => Container(
               color: Colors.grey.shade50,
-              child: Image.memory(images[index], fit: BoxFit.contain),
+              child: Image.memory(images[index], fit: BoxFit.contain, gaplessPlayback: true),
             ),
           ),
 
@@ -381,6 +365,53 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     );
   }
 
+  // ✅ Detailed auction end date/time card — countdown text isolated so the rest of the page doesn't rebuild every second
+  Widget _buildAuctionEndCard() {
+    final ended = _hasEnded();
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: ended ? Colors.red.shade50 : Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: ended ? Colors.red.shade200 : Colors.orange.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(ended ? Icons.event_busy : Icons.event_available,
+              color: ended ? Colors.red.shade600 : Colors.orange.shade700, size: 26),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(ended ? 'Auction Ended' : 'Auction Ends On',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: ended ? Colors.red.shade700 : Colors.orange.shade800)),
+                const SizedBox(height: 2),
+                Text(_fullEndDateTime(),
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: ended ? Colors.red.shade700 : Colors.black87)),
+                const SizedBox(height: 2),
+                // ✅ Isolated live-ticking widget — only this rebuilds every second
+                _LiveCountdownText(
+                  auctionEndsAt: _auctionEndsAt,
+                  endedColor: Colors.red.shade400,
+                  activeColor: Colors.orange.shade700,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
@@ -433,11 +464,22 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text('Auction Item', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                                Text(
-                                  _highestBid != null
-                                      ? 'Highest bid: Nu. ${_highestBid['bid_price']}  •  ${_timeLeft()}'
-                                      : 'No bids yet  •  ${_timeLeft()}',
-                                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                Row(
+                                  children: [
+                                    Text(
+                                      _highestBid != null
+                                          ? 'Highest bid: Nu. ${_highestBid['bid_price']}  •  '
+                                          : 'No bids yet  •  ',
+                                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                    ),
+                                    // ✅ Isolated live-ticking widget here too
+                                    _LiveCountdownText(
+                                      auctionEndsAt: _auctionEndsAt,
+                                      endedColor: Colors.white70,
+                                      activeColor: Colors.white70,
+                                      fontSize: 11,
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -452,6 +494,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                         ],
                       ),
                     ),
+
+                  // ✅ Detailed auction end date/time card
+                  if (_isAuction && _auctionEndsAt != null) _buildAuctionEndCard(),
 
                   const SizedBox(height: 16),
 
@@ -476,7 +521,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                             _infoRow('Min Bid', 'Nu. ${_minBidPrice!.toStringAsFixed(0)}'),
                           _infoRow('Posted on', _formatDate(item['created_at'])),
                           _infoRow('Seller', item['user'] != null ? item['user']['name'] : 'Unknown'),
-                          _infoRow('Contact', item['contact_preference'] ?? 'N/A'),
+                          // ✅ Contact number row removed for privacy
                           _infoRow('Condition', item['condition'] != null
                               ? item['condition'][0].toUpperCase() + item['condition'].substring(1).replaceAll('_', ' ')
                               : ''),
@@ -611,93 +656,13 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                     SizedBox(height: 6),
                     Text('This is your item', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 14)),
                     SizedBox(height: 2),
-                    Text('You cannot book or buy your own item', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    Text('You cannot bid on your own item', style: TextStyle(color: Colors.grey, fontSize: 12)),
                   ]),
                 ),
               );
             }
 
-            if (_isAuction) {
-              return Container(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-                decoration: BoxDecoration(color: Colors.white,
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, -2))]),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            height: 48,
-                            decoration: BoxDecoration(
-                                border: Border.all(color: Colors.teal.shade300),
-                                borderRadius: BorderRadius.circular(30)),
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: TextField(
-                              controller: _bidController,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                hintText: _minBidPrice != null ? 'Min Nu. ${_minBidPrice!.toStringAsFixed(0)}' : 'Enter bid (Nu)',
-                                hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
-                                border: InputBorder.none,
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        SizedBox(
-                          height: 48,
-                          child: ElevatedButton.icon(
-                            onPressed: _isPlacingBid ? null : _placeBid,
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.teal.shade600,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
-                            icon: _isPlacingBid
-                                ? const SizedBox(width: 16, height: 16,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                : const Icon(Icons.gavel, color: Colors.white, size: 18),
-                            label: Text(_myBid != null ? 'Update Bid' : 'Place Bid',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Obx(() => SizedBox(
-                      width: double.infinity,
-                      height: 44,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _cartController.addToCart(widget.item),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _cartController.isInCart(widget.item) ? Colors.grey.shade400 : Colors.teal.shade800,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                        ),
-                        icon: Icon(_cartController.isInCart(widget.item) ? Icons.shopping_cart : Icons.shopping_cart_outlined,
-                            color: Colors.white, size: 16),
-                        label: Text(_cartController.isInCart(widget.item) ? 'In Wishlist' : 'Add to Wishlist',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                      ),
-                    )),
-                    const SizedBox(height: 8),
-                    if (_isBooked.value)
-                      SizedBox(
-                        width: double.infinity, height: 40,
-                        child: OutlinedButton(
-                          onPressed: _isBooking.value ? null : _cancelBooking,
-                          style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.red, width: 1.5),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
-                          child: const Text('Cancel Bid', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            }
-
+            // ✅ Bid input + Place Bid button only (no WhatsApp, no Wishlist bottom button)
             return Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
               decoration: BoxDecoration(color: Colors.white,
@@ -705,33 +670,145 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // ✅ WhatsApp button full width
-                  _whatsAppButton(height: 48, fontSize: 15),
-                  const SizedBox(height: 8),
-                  // ✅ Add to Wishlist button
-                  Obx(() => SizedBox(
-                    width: double.infinity, height: 48,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _cartController.addToCart(widget.item),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _cartController.isInCart(widget.item)
-                            ? Colors.grey.shade400
-                            : Colors.teal.shade800,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 48,
+                          decoration: BoxDecoration(
+                              border: Border.all(color: Colors.teal.shade300),
+                              borderRadius: BorderRadius.circular(30)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: TextField(
+                            controller: _bidController,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              hintText: _minBidPrice != null ? 'Min Nu. ${_minBidPrice!.toStringAsFixed(0)}' : 'Enter bid (Nu)',
+                              hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                          ),
+                        ),
                       ),
-                      icon: Icon(
-                        _cartController.isInCart(widget.item) ? Icons.shopping_cart : Icons.shopping_cart_outlined,
-                        color: Colors.white, size: 18),
-                      label: Text(
-                        _cartController.isInCart(widget.item) ? 'Added to Wishlist' : 'Add to Wishlist',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                      const SizedBox(width: 10),
+                      SizedBox(
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          onPressed: _isPlacingBid ? null : _placeBid,
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal.shade600,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
+                          icon: _isPlacingBid
+                              ? const SizedBox(width: 16, height: 16,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              : const Icon(Icons.gavel, color: Colors.white, size: 18),
+                          label: Text(_myBid != null ? 'Update Bid' : 'Place Bid',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_isBooked.value) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity, height: 40,
+                      child: OutlinedButton(
+                        onPressed: _isBooking.value ? null : _cancelBooking,
+                        style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.red, width: 1.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
+                        child: const Text('Cancel Bid', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                      ),
                     ),
-                  )),
+                  ],
                 ],
               ),
             );
           }),
         ],
+      ),
+    );
+  }
+}
+
+/// ✅ Isolated live-ticking countdown widget.
+/// Has its own internal Timer and setState — rebuilds only itself every
+/// second instead of the whole ItemDetailScreen (which was causing the
+/// image to flicker/blink on every tick).
+class _LiveCountdownText extends StatefulWidget {
+  final String? auctionEndsAt;
+  final Color endedColor;
+  final Color activeColor;
+  final double fontSize;
+
+  const _LiveCountdownText({
+    required this.auctionEndsAt,
+    required this.endedColor,
+    required this.activeColor,
+    this.fontSize = 12,
+  });
+
+  @override
+  State<_LiveCountdownText> createState() => _LiveCountdownTextState();
+}
+
+class _LiveCountdownTextState extends State<_LiveCountdownText> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String _computeText() {
+    if (widget.auctionEndsAt == null) return '';
+    try {
+      final endsAt = DateTime.parse(widget.auctionEndsAt!).toLocal();
+      final now    = DateTime.now();
+      if (now.isAfter(endsAt)) return 'Auction ended';
+      final diff = endsAt.difference(now);
+      final days    = diff.inDays;
+      final hours   = diff.inHours.remainder(24);
+      final minutes = diff.inMinutes.remainder(60);
+      final seconds = diff.inSeconds.remainder(60);
+      if (days > 0) {
+        return '${days}d ${hours.toString().padLeft(2, '0')}h '
+            '${minutes.toString().padLeft(2, '0')}m '
+            '${seconds.toString().padLeft(2, '0')}s left';
+      }
+      return '${hours.toString().padLeft(2, '0')}h '
+          '${minutes.toString().padLeft(2, '0')}m '
+          '${seconds.toString().padLeft(2, '0')}s left';
+    } catch (_) { return ''; }
+  }
+
+  bool _hasEnded() {
+    if (widget.auctionEndsAt == null) return false;
+    try {
+      return DateTime.now().isAfter(DateTime.parse(widget.auctionEndsAt!).toLocal());
+    } catch (_) { return false; }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ended = _hasEnded();
+    return Text(
+      _computeText(),
+      style: TextStyle(
+        fontSize: widget.fontSize,
+        fontWeight: FontWeight.w500,
+        color: ended ? widget.endedColor : widget.activeColor,
       ),
     );
   }

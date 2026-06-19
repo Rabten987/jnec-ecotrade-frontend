@@ -10,16 +10,18 @@ import 'notifications_screen.dart';
 import 'package:flutter/services.dart';
 import '../controllers/home_controller.dart';
 import '../controllers/auth_controller.dart';
-import 'app_bottom_nav.dart';
 
-class PostScreen extends StatefulWidget {
-  const PostScreen({super.key});
+class PostTab extends StatefulWidget {
+  const PostTab({super.key});
 
   @override
-  State<PostScreen> createState() => _PostScreenState();
+  State<PostTab> createState() => PostTabState();
 }
 
-class _PostScreenState extends State<PostScreen> {
+class PostTabState extends State<PostTab> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   final _itemNameController    = TextEditingController();
   final _locationController    = TextEditingController();
   final _contactController     = TextEditingController();
@@ -341,6 +343,7 @@ class _PostScreenState extends State<PostScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final phone = _contactController.text;
 
     return Scaffold(
@@ -356,9 +359,7 @@ class _PostScreenState extends State<PostScreen> {
               onPressed: () => Get.to(() => const NotificationsScreen())),
         ],
       ),
-      body: SwipeNavWrapper(
-        currentIndex: 2,
-        child: SingleChildScrollView(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -844,8 +845,6 @@ class _PostScreenState extends State<PostScreen> {
           ],
         ),
       ),
-      ),
-      bottomNavigationBar: const AppBottomNav(currentIndex: 2),
     );
   }
 }

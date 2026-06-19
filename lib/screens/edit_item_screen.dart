@@ -19,7 +19,6 @@ class EditItemScreen extends StatefulWidget {
 
 class _EditItemScreenState extends State<EditItemScreen> {
   late TextEditingController _itemNameController;
-  late TextEditingController _priceController;
   late TextEditingController _locationController;
   late TextEditingController _contactController;
   final TextEditingController _minBidController      = TextEditingController();
@@ -27,8 +26,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
 
   late String _selectedCondition;
   late String _selectedCategory;
-  bool _isLoading      = false;
-  bool _auctionEnabled = false;
+  bool _isLoading = false;
 
   // ✅ Store the selected end date for display
   DateTime? _selectedEndDate;
@@ -48,21 +46,21 @@ class _EditItemScreenState extends State<EditItemScreen> {
   void initState() {
     super.initState();
     _itemNameController = TextEditingController(text: widget.item['item_name'] ?? '');
-    _priceController    = TextEditingController(text: widget.item['price'].toString());
     _locationController = TextEditingController(text: widget.item['location'] ?? '');
     _contactController  = TextEditingController(text: widget.item['contact_preference'] ?? '');
     _selectedCondition  = widget.item['condition'] ?? 'used';
     _selectedCategory   = widget.item['category'] ?? 'stationary';
 
-    final auctionVal = widget.item['auction_enabled'];
-    _auctionEnabled  = auctionVal == true || auctionVal == 1 || auctionVal.toString() == 'true';
-
+    // ✅ Min bid is now the only price field — prefill from min_bid_price,
+    // falling back to price if min_bid_price isn't set yet
     if (widget.item['min_bid_price'] != null) {
       _minBidController.text = widget.item['min_bid_price'].toString();
+    } else if (widget.item['price'] != null) {
+      _minBidController.text = widget.item['price'].toString();
     }
 
     // ✅ Preload existing auction_ends_at as selected date
-    if (_auctionEnabled && widget.item['auction_ends_at'] != null) {
+    if (widget.item['auction_ends_at'] != null) {
       try {
         _selectedEndDate = DateTime.parse(widget.item['auction_ends_at']).toLocal();
         final now  = DateTime.now();
@@ -93,7 +91,6 @@ class _EditItemScreenState extends State<EditItemScreen> {
   @override
   void dispose() {
     _itemNameController.dispose();
-    _priceController.dispose();
     _locationController.dispose();
     _contactController.dispose();
     _minBidController.dispose();
@@ -109,12 +106,10 @@ class _EditItemScreenState extends State<EditItemScreen> {
   String _formatLabel(String val) =>
       val[0].toUpperCase() + val.substring(1).replaceAll('_', ' ');
 
-  // ✅ Show calendar date picker — same as post_screen
   Future<void> _pickEndDate() async {
     final now     = DateTime.now();
     final maxDate = now.add(const Duration(days: 30));
 
-    // ✅ Start from existing end date or tomorrow
     final initialDate = (_selectedEndDate != null && _selectedEndDate!.isAfter(now))
         ? _selectedEndDate!
         : now.add(const Duration(days: 3));
@@ -216,8 +211,8 @@ class _EditItemScreenState extends State<EditItemScreen> {
   }
 
   Future<void> _updateItem() async {
-    if (_itemNameController.text.isEmpty || _priceController.text.isEmpty) {
-      Get.snackbar('Error', 'Please fill item name and price!',
+    if (_itemNameController.text.isEmpty) {
+      Get.snackbar('Error', 'Please fill item name!',
           backgroundColor: Colors.orange, colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM);
       return;
@@ -232,8 +227,15 @@ class _EditItemScreenState extends State<EditItemScreen> {
       return;
     }
 
-    if (_auctionEnabled && _minBidController.text.isEmpty) {
+    if (_minBidController.text.isEmpty) {
       Get.snackbar('Error', 'Please set a minimum bid price!',
+          backgroundColor: Colors.orange, colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    final minBid = double.tryParse(_minBidController.text);
+    if (minBid == null || minBid <= 0) {
+      Get.snackbar('Error', 'Minimum bid price must be greater than zero!',
           backgroundColor: Colors.orange, colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM);
       return;
@@ -255,22 +257,17 @@ class _EditItemScreenState extends State<EditItemScreen> {
         'item_name':          _itemNameController.text,
         'condition':          _selectedCondition,
         'category':           _selectedCategory,
-        'price':              double.parse(_priceController.text),
+        'price':              minBid,
         'location':           _locationController.text,
         'contact_preference': _contactController.text,
-        'auction_enabled':    _auctionEnabled,
+        'auction_enabled':    true,
+        'min_bid_price':      minBid,
       };
 
       if (imageValue != null) body['image'] = imageValue;
 
-      if (_auctionEnabled) {
-        if (_minBidController.text.isNotEmpty) {
-          body['min_bid_price'] = double.parse(_minBidController.text);
-        }
-        // ✅ Always send auction_duration when auction is enabled
-        if (_auctionDaysController.text.isNotEmpty) {
-          body['auction_duration'] = int.parse(_auctionDaysController.text);
-        }
+      if (_auctionDaysController.text.isNotEmpty) {
+        body['auction_duration'] = int.parse(_auctionDaysController.text);
       }
 
       final response = await http.put(
@@ -297,12 +294,10 @@ class _EditItemScreenState extends State<EditItemScreen> {
                 const Text('Item Updated!',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                Text(
-                  _auctionEnabled
-                      ? 'Your auction end date has been updated!'
-                      : 'Your item has been updated successfully.',
+                const Text(
+                  'Your auction item has been updated successfully.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.black54),
+                  style: TextStyle(color: Colors.black54),
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
@@ -520,19 +515,6 @@ class _EditItemScreenState extends State<EditItemScreen> {
 
             const SizedBox(height: 16),
 
-            // ── Price ──
-            TextField(
-              controller: _priceController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Price (Nu)', labelStyle: TextStyle(color: Colors.black54),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
-                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.teal)),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
             // ── Location ──
             TextField(
               controller: _locationController,
@@ -599,146 +581,125 @@ class _EditItemScreenState extends State<EditItemScreen> {
 
             const SizedBox(height: 24),
 
-            // ── Auction Toggle ──
+            // ── Auction Settings (always shown — no toggle, matches post_screen) ──
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _auctionEnabled ? Colors.teal.shade50 : Colors.grey.shade50,
+                color: Colors.teal.shade50,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: _auctionEnabled ? Colors.teal.shade300 : Colors.grey.shade300),
+                border: Border.all(color: Colors.teal.shade300),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+
                   Row(
                     children: [
-                      Icon(Icons.gavel,
-                          color: _auctionEnabled ? Colors.teal.shade600 : Colors.grey, size: 22),
+                      Icon(Icons.gavel, color: Colors.teal.shade600, size: 22),
                       const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Enable Auction',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                            Text(
-                              _auctionEnabled
-                                  ? 'Buyers can bid on this item'
-                                  : 'Turn on to sell via auction',
-                              style: const TextStyle(fontSize: 11, color: Colors.black45),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Switch(
-                        value: _auctionEnabled,
-                        activeColor: Colors.teal.shade600,
-                        onChanged: (val) => setState(() {
-                          _auctionEnabled = val;
-                          if (!val) {
-                            // ✅ Clear date when auction disabled
-                            _selectedEndDate = null;
-                            _auctionDaysController.clear();
-                          }
-                        }),
-                      ),
+                      Text('Auction Settings',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: Colors.teal.shade700)),
                     ],
                   ),
-                  if (_auctionEnabled) ...[
-                    const SizedBox(height: 16),
 
-                    // ── Min Bid ──
-                    TextField(
-                      controller: _minBidController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Minimum Bid Price (Nu)',
-                        labelStyle: TextStyle(color: Colors.teal.shade700),
-                        hintText: 'e.g. 100',
-                        hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
-                        enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.teal.shade300)),
-                        focusedBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.teal.shade600)),
-                        prefixIcon: Icon(Icons.currency_rupee,
-                            color: Colors.teal.shade600, size: 18),
-                      ),
+                  const SizedBox(height: 16),
+
+                  // ── Minimum Bid Price (only price field) ──
+                  TextField(
+                    controller: _minBidController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                    ],
+                    decoration: InputDecoration(
+                      labelText: 'Minimum Bid Price (Nu)',
+                      labelStyle: TextStyle(color: Colors.teal.shade700),
+                      hintText: 'e.g. 100',
+                      hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
+                      enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.teal.shade300)),
+                      focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.teal.shade600)),
+                      prefixIcon: Icon(Icons.currency_rupee,
+                          color: Colors.teal.shade600, size: 18),
                     ),
+                  ),
 
-                    const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                    // ✅ Calendar date picker — same as post_screen
-                    GestureDetector(
-                      onTap: _pickEndDate,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: Colors.teal.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.teal.shade300),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.calendar_today,
-                                color: Colors.teal.shade600, size: 20),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Auction End Date',
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.teal.shade600,
-                                          fontWeight: FontWeight.w500)),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    _auctionDaysController.text.isEmpty
-                                        ? 'Tap to select end date'
-                                        : () {
-                                            final days = int.tryParse(_auctionDaysController.text) ?? 0;
-                                            final endDate = DateTime.now().add(Duration(days: days));
-                                            return '${endDate.day.toString().padLeft(2, '0')}/'
-                                                '${endDate.month.toString().padLeft(2, '0')}/'
-                                                '${endDate.year}  ($days days from now)';
-                                          }(),
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: _auctionDaysController.text.isEmpty
-                                          ? Colors.black38
-                                          : Colors.teal.shade700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(Icons.arrow_drop_down, color: Colors.teal.shade600),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(10),
+                  // ✅ Calendar date picker — same as post_screen
+                  GestureDetector(
+                    onTap: _pickEndDate,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(
-                          color: Colors.teal.shade100,
-                          borderRadius: BorderRadius.circular(8)),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.teal.shade300),
+                      ),
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline, size: 14, color: Colors.teal.shade700),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(
-                            'Auction closes on the selected date. Winner is the highest bidder.',
-                            style: TextStyle(fontSize: 11, color: Colors.teal.shade700),
-                          )),
+                          Icon(Icons.calendar_today,
+                              color: Colors.teal.shade600, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Auction End Date',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.teal.shade600,
+                                        fontWeight: FontWeight.w500)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _auctionDaysController.text.isEmpty
+                                      ? 'Tap to select end date'
+                                      : () {
+                                          final days = int.tryParse(_auctionDaysController.text) ?? 0;
+                                          final endDate = DateTime.now().add(Duration(days: days));
+                                          return '${endDate.day.toString().padLeft(2, '0')}/'
+                                              '${endDate.month.toString().padLeft(2, '0')}/'
+                                              '${endDate.year}  ($days days from now)';
+                                        }(),
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: _auctionDaysController.text.isEmpty
+                                        ? Colors.black38
+                                        : Colors.teal.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(Icons.arrow_drop_down, color: Colors.teal.shade600),
                         ],
                       ),
                     ),
-                  ],
+                  ),
+
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                        color: Colors.teal.shade100,
+                        borderRadius: BorderRadius.circular(8)),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 14, color: Colors.teal.shade700),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(
+                          'Auction closes on the selected date. Winner is the highest bidder.',
+                          style: TextStyle(fontSize: 11, color: Colors.teal.shade700),
+                        )),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -755,9 +716,9 @@ class _EditItemScreenState extends State<EditItemScreen> {
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(
-                        _auctionEnabled ? 'Update & Save Auction' : 'Update Item',
-                        style: const TextStyle(color: Colors.white, fontSize: 16,
+                    : const Text(
+                        'Update Auction Item',
+                        style: TextStyle(color: Colors.white, fontSize: 16,
                             fontWeight: FontWeight.bold)),
               ),
             ),

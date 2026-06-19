@@ -2,7 +2,7 @@ import 'package:get/get.dart';
 import '../screens/splash_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
-import '../screens/home_screen.dart';
+import '../screens/main_nav_screen.dart';
 import '../screens/admin/admin_home_screen.dart';
 
 class AppRoutes {
@@ -18,7 +18,9 @@ class AppRoutes {
     GetPage(name: splash,   page: () => const SplashScreen()),
     GetPage(name: login,    page: () => const LoginScreen()),
     GetPage(name: register, page: () => const RegisterScreen()),
-    GetPage(name: home,     page: () => const HomeScreen()),
+    // ✅ Home now launches MainNavScreen — hosts all 5 tabs in a real
+    // sliding PageView (Home, My Listings, Post, Offers, Profile)
+    GetPage(name: home,     page: () => const MainNavScreen()),
     GetPage(name: adminHome, page: () => const AdminHomeScreen()),
   ];
 }
